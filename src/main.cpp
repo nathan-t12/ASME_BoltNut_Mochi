@@ -1,16 +1,25 @@
+// 套件依賴
 #include <Arduino.h>
-  int a=1;
-  int b= 2;
+#include <Servo.h>
+
+// 自訂的函式庫
+#include "Hardware_Layer.h"
+#include "Math_Layer.h" 
+#include "Comms_Layer.h"
+
 
 void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(115200);
 
+  Serial.begin(115200);
+  initTimer1_20ms();
 
 }
 
 void loop() {
-  Serial.println("Hello World");
-  Serial.println(a+b);
+  if (timerFlag){
+    timerFlag = false;
+    Serial.println(millis());
+
+  }
 }
 
