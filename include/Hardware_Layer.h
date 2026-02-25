@@ -2,7 +2,6 @@
 #define HARDWARE_LAYER_H
 
 #include <Arduino.h>
-
 #pragma once
 
 extern volatile bool timerFlag; 
