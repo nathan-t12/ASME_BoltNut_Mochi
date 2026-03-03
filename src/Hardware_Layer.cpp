@@ -1,5 +1,15 @@
 #include "Hardware_Layer.h"
 
+Motor::Motor(float Kp, float Ki, float Kd, uint8_t pwmPin, uint8_t dirPin1, uint8_t dirPin2, uint8_t encoderPin)
+    : pwmPin(pwmPin), dirPin1(dirPin1), dirPin2(dirPin2), encoderPin(encoderPin), speedPID(Kp, Ki, Kd) {
+    pinMode(pwmPin, OUTPUT);
+    pinMode(dirPin1, OUTPUT);
+    pinMode(dirPin2, OUTPUT);
+    pinMode(encoderPin, INPUT_PULLUP);
+}
+
+
+
 volatile bool timerFlag = false;
 
 void initTimer1_20ms() {

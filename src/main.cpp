@@ -32,7 +32,7 @@ void setup() {
   pinMode(2, INPUT_PULLUP);
 
   initTimer1_20ms();
-  PID_Controller pid(PidConfig::LEFT_KP, PidConfig::LEFT_KI, PidConfig::LEFT_KD);
+  PID_Controller pid(PidConfig::PID_KP, PidConfig::PID_KI, PidConfig::PID_KD);
 }
 
 void loop() {
