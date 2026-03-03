@@ -3,18 +3,17 @@
 
 PID_Controller::PID_Controller(float p, float i, float d) 
     : Kp(static_cast<int16_t>(p * PidConfig::SCALE_FACTOR))
-    , Ki(static_cast<int16_t>(i * PidConfig::SCALE_FACTOR))
-    , Kd(static_cast<int16_t>(d * PidConfig::SCALE_FACTOR))
+    , Ki(static_cast<int32_t>(i * PidConfig::SCALE_FACTOR * PidConfig::timeStep))
+    , Kd(static_cast<int32_t>(d * PidConfig::SCALE_FACTOR / PidConfig::timeStep))
     , integral(0)
     , previousError(0)
-    , lastTime(0)
 {
 }
 
 int16_t PID_Controller::compute(int16_t setpoint, int16_t input) {
     int16_t error = setpoint - input;
 
-    // 比例項：位元右移代替除法
+    // 比例項
     int32_t pTerm = (int32_t)Kp * error >> PidConfig::SCALE_SHIFT;
 
     // 積分項
@@ -40,5 +39,4 @@ int16_t PID_Controller::compute(int16_t setpoint, int16_t input) {
 void PID_Controller::reset() {
     integral = 0;
     previousError = 0;
-    lastTime = 0;
 }

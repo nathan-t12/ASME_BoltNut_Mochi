@@ -12,12 +12,12 @@ public:
 private:
     // 縮放後的整數增益
     int16_t Kp;
-    int16_t Ki;
-    int16_t Kd;
+    int32_t Ki;
+    int32_t Kd;
 
-    int32_t integral;       // 積分項需要較大範圍
+    // 積分項需要較大範圍
+    int32_t integral;       
     int16_t previousError;
-    unsigned long lastTime;
 };
 
 #endif
