@@ -15,9 +15,10 @@ private:
     int32_t Ki;
     int32_t Kd;
 
-    // 積分項需要較大範圍
-    int32_t integral;       
-    int16_t previousError;
+    // 積分項需要較大範圍      
+    int16_t previousError1;
+    int16_t previousError2;
+    int16_t previousOutput;
 };
 
 #endif

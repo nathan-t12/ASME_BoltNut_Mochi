@@ -20,7 +20,7 @@ class Motor{
         uint8_t dirPin2;
         uint8_t encoderPin1;
         uint8_t encoderPin2;
-        PID_Controller speedPID;
+        PID_Controller incrementPID;
         volatile uint16_t encoderCount = 0;
         int16_t currentSpeed = 0;
 };
