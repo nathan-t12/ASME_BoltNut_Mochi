@@ -11,14 +11,14 @@
 
 
 
-//Motor(Kp, Ki, Kd, pwmPin, dirPin1, dirPin2, encoderPin)
+//Motor(Kp, Ki, Kd, pwmPin, dirPin1, dirPin2, encoderPin1, encoderPin2)
+//atatchinterrupt(digitalPinToInterrupt(encoderPin1),Motor.encoderISR(), RISING);
 
 void setup() {
-
   Serial.begin(115200);
 
   initTimer1_20ms();
-  PID_Controller pid(PidConfig::PID_KP, PidConfig::PID_KI, PidConfig::PID_KD);
+  
 }
 
 void loop() {

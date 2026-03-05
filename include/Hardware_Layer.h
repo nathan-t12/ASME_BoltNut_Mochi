@@ -12,7 +12,7 @@ class Motor{
     public:
         Motor(float Kp, float Ki, float Kd, uint8_t pwmPin, uint8_t dirPin1, uint8_t dirPin2, uint8_t encoderPin1, uint8_t encoderPin2);
         void setSpeed(int16_t speed);
-        void updateEncoder();
+        void updateEncoder(int16_t target);
         void encoderISR();
     private:
         uint8_t pwmPin;
