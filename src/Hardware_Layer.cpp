@@ -1,14 +1,16 @@
 #include "Hardware_Layer.h"
+#include "config.h"
 #include <Arduino.h>
 
 Motor::Motor(float Kp, float Ki, float Kd, uint8_t pwmPin, uint8_t dirPin1, uint8_t dirPin2, uint8_t encoderPin1, uint8_t encoderPin2)
-    : pwmPin(pwmPin), dirPin1(dirPin1), dirPin2(dirPin2), encoderPin1(encoderPin1), encoderPin2(encoderPin2), speedPID(Kp, Ki, Kd) {
+    : pwmPin(pwmPin), dirPin1(dirPin1), dirPin2(dirPin2), encoderPin1(encoderPin1), encoderPin2(encoderPin2), incrementPID(Kp, Ki, Kd), encoderFilter(FilterConfig::ALPHA_FIXED) {
     pinMode(pwmPin, OUTPUT);
     pinMode(dirPin1, OUTPUT);
     pinMode(dirPin2, OUTPUT);
     pinMode(encoderPin1, INPUT_PULLUP);
     pinMode(encoderPin2, INPUT_PULLUP);
 }
+
 
 void Motor::setSpeed(int16_t speed) {
     if (speed > 0) {
@@ -25,12 +27,13 @@ void Motor::setSpeed(int16_t speed) {
     analogWrite(pwmPin, speed);
 }
 
-void Motor::updateEncoder(){
+void Motor::updateEncoder(int16_t target) {
     noInterrupts();
-    uint16_t count =encoderCount;
+    int16_t count =encoderCount;
     encoderCount=0;
     interrupts();
-    currentSpeed = count; // 這裡可以根據實際情況進行縮放
+    count = encoderFilter.update(count);
+    setSpeed(incrementPID.compute(target, count));
 }
 
 void Motor::encoderISR() {

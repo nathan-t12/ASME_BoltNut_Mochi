@@ -3,6 +3,20 @@
 #pragma once
 #include <Arduino.h>
 
+class Filter {
+public:
+    Filter(uint8_t alphaFixed);   
+    int16_t update(int16_t newValue);
+    void reset();
+
+private:
+    uint8_t alphaFixed;            
+    int16_t previousValue;
+};
+
+
+
+
 class PID_Controller {
 public:
     PID_Controller(float p, float i, float d);
@@ -15,9 +29,10 @@ private:
     int32_t Ki;
     int32_t Kd;
 
-    // 積分項需要較大範圍
-    int32_t integral;       
-    int16_t previousError;
+    // 積分項需要較大範圍      
+    int16_t previousError1;
+    int16_t previousError2;
+    int16_t previousOutput;
 };
 
 #endif

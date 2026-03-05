@@ -29,9 +29,14 @@ namespace PidConfig {
     // 輸出限制
     constexpr int16_t OUTPUT_MAX      =  255;
     constexpr int16_t OUTPUT_MIN      = -255;
-    constexpr int32_t INTEGRAL_LIMIT  =  128 * SCALE_FACTOR;
+    constexpr int32_t INTEGRAL_LIMIT  =  128L * SCALE_FACTOR;
 }
 
 // 濾波參數
+namespace FilterConfig {
+    constexpr uint8_t  SCALE_SHIFT  = 5;    
+    constexpr uint16_t SCALE_FACTOR = (1 << SCALE_SHIFT);        
+    constexpr uint8_t  ALPHA_FIXED  = 0.3f * (1 << SCALE_SHIFT);  // 0.1~1.0
+}
 
 #endif
