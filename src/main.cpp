@@ -14,6 +14,10 @@
 //Motor(Kp, Ki, Kd, pwmPin, dirPin1, dirPin2, encoderPin1, encoderPin2)
 //atatchinterrupt(digitalPinToInterrupt(encoderPin1),Motor.encoderISR(), RISING);
 
+void setTurn(){
+  
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -26,6 +30,7 @@ void loop() {
 
   if (timerFlag){
     timerFlag = false;
+    Serial.println(micros());
     //update encoder
   }
 }

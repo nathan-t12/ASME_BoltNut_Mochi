@@ -1,6 +1,27 @@
 #include "Math_Layer.h"
 #include "config.h"
 
+
+Filter::Filter(uint8_t alphaFixed) 
+    : alphaFixed(alphaFixed)
+    , previousValue(0) 
+{
+}
+
+int16_t Filter::update(int16_t newValue) {
+    int32_t result = ((int32_t)alphaFixed * newValue 
+                   + (int32_t)(FilterConfig::SCALE_SHIFT - alphaFixed) * previousValue) 
+                   >> FilterConfig::SCALE_SHIFT;
+
+    previousValue = static_cast<int16_t>(result);
+    return previousValue;
+}
+
+
+void Filter::reset() {
+    previousValue = 0;
+}
+
 PID_Controller::PID_Controller(float p, float i, float d) 
     : Kp(static_cast<int16_t>(p * PidConfig::SCALE_FACTOR))
     , Ki(static_cast<int32_t>(i * PidConfig::SCALE_FACTOR * PidConfig::timeStep))

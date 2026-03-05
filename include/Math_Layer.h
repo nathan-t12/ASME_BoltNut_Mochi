@@ -3,6 +3,20 @@
 #pragma once
 #include <Arduino.h>
 
+class Filter {
+public:
+    Filter(uint8_t alphaFixed);   
+    int16_t update(int16_t newValue);
+    void reset();
+
+private:
+    uint8_t alphaFixed;            
+    int16_t previousValue;
+};
+
+
+
+
 class PID_Controller {
 public:
     PID_Controller(float p, float i, float d);

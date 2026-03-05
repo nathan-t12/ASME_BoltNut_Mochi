@@ -21,8 +21,9 @@ class Motor{
         uint8_t encoderPin1;
         uint8_t encoderPin2;
         PID_Controller incrementPID;
-        volatile uint16_t encoderCount = 0;
+        volatile int16_t encoderCount = 0;
         int16_t currentSpeed = 0;
+        Filter encoderFilter;
 };
 
 #endif
