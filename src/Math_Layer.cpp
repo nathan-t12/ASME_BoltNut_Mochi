@@ -10,7 +10,7 @@ Filter::Filter(uint8_t alphaFixed)
 
 int16_t Filter::update(int16_t newValue) {
     int32_t result = ((int32_t)alphaFixed * newValue 
-                   + (int32_t)(FilterConfig::SCALE_SHIFT - alphaFixed) * previousValue) 
+                   + (int32_t)(FilterConfig::SCALE_FACTOR - alphaFixed) * previousValue) 
                    >> FilterConfig::SCALE_SHIFT;
 
     previousValue = static_cast<int16_t>(result);
