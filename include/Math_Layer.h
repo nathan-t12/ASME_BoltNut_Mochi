@@ -5,12 +5,12 @@
 
 class Filter {
 public:
-    Filter(uint8_t alphaFixed);   
+    Filter(uint16_t alphaFixed);   
     int16_t update(int16_t newValue);
     void reset();
 
 private:
-    uint8_t alphaFixed;            
+    uint16_t alphaFixed;            
     int16_t previousValue;
 };
 

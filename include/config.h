@@ -5,6 +5,8 @@
 // ========== 腳位定義 ==========
 
 // Encoder
+// maxcount 38
+// mincount 8
 
 // DC Motor
 
@@ -36,7 +38,7 @@ namespace PidConfig {
 namespace FilterConfig {
     constexpr uint8_t  SCALE_SHIFT  = 5;    
     constexpr uint16_t SCALE_FACTOR = (1 << SCALE_SHIFT);        
-    constexpr uint8_t  ALPHA_FIXED  = 0.3f * (1 << SCALE_SHIFT);  // 0.1~1.0
+    constexpr uint16_t  ALPHA_FIXED  = 0.3f * SCALE_FACTOR;  // 0.1~1.0
 }
 
 #endif
