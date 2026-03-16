@@ -2,7 +2,7 @@
 #include "config.h"
 
 
-Filter::Filter(uint8_t alphaFixed) 
+Filter::Filter(uint16_t alphaFixed) 
     : alphaFixed(alphaFixed)
     , previousValue(0) 
 {
