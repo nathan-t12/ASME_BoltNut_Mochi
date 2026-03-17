@@ -5,6 +5,7 @@
 #include "config.h"
 
 #include <IBusBM.h>
+#include <Servo.h>
 //Motor(Kp,Ki,Kd,pwmPin,dirPin1,dirPin2,encoderPin1,encoderPin2)
 IBusBM ibus;
 uint32_t lastStatusMs = 0;
