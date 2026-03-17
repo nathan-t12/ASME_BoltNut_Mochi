@@ -18,12 +18,14 @@ void setup() {
 
 
 void loop() {
-  uint16_t ch0 = ibus.readChannel(0);
-  if (ch0 > 0) {
+  uint16_t ch1 = ibus.readChannel(1);
+  if (ch1 > 0) {
+    int16_t targetCount = mapC1ToTargetCountLUT(ch1);
+
     Serial.print("CH0:");
-    Serial.print(ch0);
+    Serial.print(ibus.readChannel(0));
     Serial.print(",CH1:");
-    Serial.print(ibus.readChannel(1));
+    Serial.print(ch1);
     Serial.print(",CH2:");
     Serial.print(ibus.readChannel(2));
     Serial.print(",CH3:");
@@ -31,7 +33,9 @@ void loop() {
     Serial.print(",CH4:");
     Serial.print(ibus.readChannel(4));
     Serial.print(",CH5:");
-    Serial.println(ibus.readChannel(5));
+    Serial.print(ibus.readChannel(5));
+    Serial.print(",TargetCount:");
+    Serial.println(targetCount);
   } else if (millis() - lastStatusMs >= 500) {
     lastStatusMs = millis();
     Serial.println("Waiting for iBus signal...");
