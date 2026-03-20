@@ -13,6 +13,8 @@ class Motor{
         Motor(float Kp, float Ki, float Kd, uint8_t pwmPin, uint8_t dirPin1, uint8_t dirPin2, uint8_t encoderPin1, uint8_t encoderPin2);
         void setSpeed(int16_t speed);
         void updateEncoder(int16_t target);
+        void updateFeedbackOnly();
+        void stopAndResetControl();
         void begin();
         void encoderISR();
         int16_t getCurrentSpeed() const { return currentSpeed; }

@@ -18,6 +18,8 @@ void Motor::begin(){
 
 
 void Motor::setSpeed(int16_t speed) {
+    int16_t commanded = speed;
+
     if (speed > 0) {
         digitalWrite(dirPin1, HIGH);
         digitalWrite(dirPin2, LOW);
@@ -30,16 +32,48 @@ void Motor::setSpeed(int16_t speed) {
         digitalWrite(dirPin2, LOW);
     }
     analogWrite(pwmPin, speed);
+    lastPWM = commanded;
 }
 
 void Motor::updateEncoder(int16_t target) {
     noInterrupts();
-    int16_t count =encoderCount;
-    encoderCount=0;
+    int16_t count = encoderCount;
+    encoderCount = 0;
     interrupts();
+
+    // Ignore impossible spikes caused by electrical noise.
+    if (abs(count) > 2000) {
+        count = 0;
+    }
+
     currentSpeed = encoderFilter.update(count);
     lastPWM = incrementPID.compute(target, currentSpeed);
     setSpeed(lastPWM);
+}
+
+void Motor::updateFeedbackOnly() {
+    noInterrupts();
+    int16_t count = encoderCount;
+    encoderCount = 0;
+    interrupts();
+
+    if (abs(count) > 2000) {
+        count = 0;
+    }
+
+    currentSpeed = encoderFilter.update(count);
+}
+
+void Motor::stopAndResetControl() {
+    noInterrupts();
+    encoderCount = 0;
+    interrupts();
+
+    incrementPID.reset();
+    encoderFilter.reset();
+    currentSpeed = 0;
+    lastPWM = 0;
+    setSpeed(0);
 }
 
 void Motor::encoderISR() {
