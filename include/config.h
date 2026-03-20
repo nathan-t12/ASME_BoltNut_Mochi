@@ -9,6 +9,38 @@
 // mincount 8
 
 // DC Motor
+namespace MotorPins {
+    // 1A
+    constexpr uint8_t M1_PWM_PIN = 6;
+    constexpr uint8_t M1_DIR_PIN1 = 32;
+    constexpr uint8_t M1_DIR_PIN2 = 33;
+    constexpr uint8_t M1_ENCODER_PIN1 = 18; // Interrupt Pin
+    constexpr uint8_t M1_ENCODER_PIN2 = 19; // Interrupt Pin
+
+    //1B
+    constexpr uint8_t M2_PWM_PIN = 7;
+    constexpr uint8_t M2_DIR_PIN1 = 34;
+    constexpr uint8_t M2_DIR_PIN2 = 35;
+    constexpr uint8_t M2_ENCODER_PIN1 = 20; // Interrupt Pin
+    constexpr uint8_t M2_ENCODER_PIN2 = 21; // Interrupt Pin
+
+    //2A
+    constexpr uint8_t M3_PWM_PIN = 4;
+    constexpr uint8_t M3_DIR_PIN1 = 28;
+    constexpr uint8_t M3_DIR_PIN2 = 29;
+    constexpr uint8_t M3_ENCODER_PIN1 = 2; // Interrupt Pin
+    constexpr uint8_t M3_ENCODER_PIN2 = 8; // Interrupt Pin
+
+    //2B
+    constexpr uint8_t M4_PWM_PIN = 5;
+    constexpr uint8_t M4_DIR_PIN1 = 30;
+    constexpr uint8_t M4_DIR_PIN2 = 31;
+    constexpr uint8_t M4_ENCODER_PIN1 = 3; // Interrupt Pin
+    constexpr uint8_t M4_ENCODER_PIN2 = 9; // Interrupt Pin
+
+    constexpr uint8_t STBY1 = 37;
+    constexpr uint8_t STBY2 = 36;
+};
 
 // Servo Motor
 
