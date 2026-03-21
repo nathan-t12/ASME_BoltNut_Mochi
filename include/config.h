@@ -47,6 +47,21 @@ namespace ServoMotor
     constexpr uint8_t Servo1_PWM_PIN = 10;
     constexpr uint8_t Servo2_PWM_PIN = 40;
     constexpr uint8_t Servo3_PWM_PIN = 41;
+
+    constexpr uint16_t INPUT_MIN = 1000;
+    constexpr uint16_t INPUT_MAX = 2000;
+    constexpr uint8_t FILTER_SHIFT = 3;
+    constexpr uint8_t WRITE_DEADBAND = 2;
+    constexpr uint8_t ENDPOINT_BAND = 20;
+
+    constexpr uint8_t SERVO1_MIN_ANGLE = 0;
+    constexpr uint8_t SERVO1_MAX_ANGLE = 90;
+
+    constexpr uint8_t SERVO2_MIN_ANGLE = 25;
+    constexpr uint8_t SERVO2_MAX_ANGLE = 170;
+
+    constexpr uint8_t SERVO3_MIN_ANGLE = 45;
+    constexpr uint8_t SERVO3_MAX_ANGLE = 115;
     
 }
 

@@ -6,7 +6,7 @@
 
 extern volatile bool timerFlag; 
 
-void initTimer1_20ms(); // 初始化函式的宣告
+void initControlTimer20ms(); // 初始化函式的宣告
 
 class Motor{
     public:

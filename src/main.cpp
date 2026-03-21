@@ -26,6 +26,7 @@ Motor motor4(PidConfig::PID_KP, PidConfig::PID_KI, PidConfig::PID_KD,
 
 Servo servo1;
 Servo servo2;
+Servo servo3;
 
 void motor1EncoderISR() {
     motor1.encoderISR();
@@ -51,8 +52,124 @@ int16_t lastSpeedOL1 = 0;
 int16_t lastSpeedOL2 = 0;
 int16_t lastSpeedOL3 = 0;
 int16_t lastSpeedOL4 = 0;
-uint8_t lastServo1Angle = 0;
-uint8_t lastServo2Angle = 0;
+uint8_t lastServo1Angle = ServoMotor::SERVO1_MIN_ANGLE;
+uint8_t lastServo2Angle = ServoMotor::SERVO2_MIN_ANGLE;
+uint8_t lastServo3Angle = ServoMotor::SERVO3_MIN_ANGLE;
+
+constexpr uint16_t SERVO_INPUT_CENTER = (ServoMotor::INPUT_MIN + ServoMotor::INPUT_MAX) / 2;
+constexpr uint8_t SERVO_DISCRETE_HYST_BAND = 35;
+constexpr uint8_t SERVO_SWITCH_CONFIRM_COUNT = 2;
+constexpr uint8_t SERVO_FILTER_SHIFT_S1_S3 = ServoMotor::FILTER_SHIFT;
+constexpr uint8_t SERVO_FILTER_SHIFT_S2 = 1;
+constexpr uint8_t SERVO_WRITE_DEADBAND_S1_S3 = ServoMotor::WRITE_DEADBAND;
+constexpr uint8_t SERVO_WRITE_DEADBAND_S2 = 1;
+ServoInputFilter servo1Filter(SERVO_INPUT_CENTER);
+ServoInputFilter servo2Filter(SERVO_INPUT_CENTER);
+ServoInputFilter servo3Filter(SERVO_INPUT_CENTER);
+
+uint8_t servo1PendingAngle = ServoMotor::SERVO1_MIN_ANGLE;
+uint8_t servo3PendingAngle = ServoMotor::SERVO3_MIN_ANGLE;
+uint8_t servo1SwitchCount = 0;
+uint8_t servo3SwitchCount = 0;
+
+static uint8_t mapServo1DiscreteWithHysteresis(uint16_t chValue, uint8_t lastAngle) {
+    // 3-level mapping with hysteresis around 1400 and 1800.
+    if (lastAngle <= 0) {
+        if (chValue >= static_cast<uint16_t>(1400 + SERVO_DISCRETE_HYST_BAND)) {
+            return 45;
+        }
+        return 0;
+    }
+
+    if (lastAngle >= 90) {
+        if (chValue <= static_cast<uint16_t>(1800 - SERVO_DISCRETE_HYST_BAND)) {
+            return 45;
+        }
+        return 90;
+    }
+
+    if (chValue <= static_cast<uint16_t>(1400 - SERVO_DISCRETE_HYST_BAND)) {
+        return 0;
+    }
+    if (chValue >= static_cast<uint16_t>(1800 + SERVO_DISCRETE_HYST_BAND)) {
+        return 90;
+    }
+    return 45;
+}
+
+static uint8_t mapServo2Lookup(uint16_t chValue) {
+    // Lookup table with focus on endpoint certainty.
+    static constexpr uint16_t kInputTable[] = {1000, 1200, 1400, 1600, 1800, 2000};
+    static constexpr uint8_t kAngleTable[] = {180, 170, 145, 105, 55, ServoMotor::SERVO2_MIN_ANGLE};
+
+    if (chValue <= kInputTable[0]) {
+        return kAngleTable[0];
+    }
+    if (chValue >= kInputTable[5]) {
+        return kAngleTable[5];
+    }
+
+    for (uint8_t i = 0; i < 5; ++i) {
+        uint16_t x0 = kInputTable[i];
+        uint16_t x1 = kInputTable[i + 1];
+        if (chValue <= x1) {
+            uint8_t y0 = kAngleTable[i];
+            uint8_t y1 = kAngleTable[i + 1];
+            uint16_t dx = x1 - x0;
+            uint16_t ox = chValue - x0;
+            uint8_t angle = static_cast<uint8_t>(
+                y0 + (static_cast<int16_t>(y1) - static_cast<int16_t>(y0)) * static_cast<int16_t>(ox) / static_cast<int16_t>(dx));
+            return angle;
+        }
+    }
+
+    return kAngleTable[5];
+}
+
+static uint8_t mapServo3DiscreteWithHysteresis(uint16_t chValue, uint8_t lastAngle) {
+    // 5-level mapping with hysteresis around 1200/1400/1600/1800.
+    if (lastAngle <= 40) {
+        if (chValue >= static_cast<uint16_t>(1200 + SERVO_DISCRETE_HYST_BAND)) {
+            return 60;
+        }
+        return 40;
+    }
+
+    if (lastAngle <= 60) {
+        if (chValue <= static_cast<uint16_t>(1200 - SERVO_DISCRETE_HYST_BAND)) {
+            return 40;
+        }
+        if (chValue >= static_cast<uint16_t>(1400 + SERVO_DISCRETE_HYST_BAND)) {
+            return 80;
+        }
+        return 60;
+    }
+
+    if (lastAngle <= 80) {
+        if (chValue <= static_cast<uint16_t>(1400 - SERVO_DISCRETE_HYST_BAND)) {
+            return 60;
+        }
+        if (chValue >= static_cast<uint16_t>(1600 + SERVO_DISCRETE_HYST_BAND)) {
+            return 100;
+        }
+        return 80;
+    }
+
+    if (lastAngle <= 100) {
+        if (chValue <= static_cast<uint16_t>(1600 - SERVO_DISCRETE_HYST_BAND)) {
+            return 80;
+        }
+        if (chValue >= static_cast<uint16_t>(1800 + SERVO_DISCRETE_HYST_BAND)) {
+            return 120;
+        }
+        return 100;
+    }
+
+    if (chValue <= static_cast<uint16_t>(1800 - SERVO_DISCRETE_HYST_BAND)) {
+        return 100;
+    }
+    return 120;
+}
 
 void setup() {
     Serial.begin(115200);
@@ -65,10 +182,12 @@ void setup() {
     
     servo1.attach(ServoMotor::Servo1_PWM_PIN);
     servo2.attach(ServoMotor::Servo2_PWM_PIN);
-    servo1.write(0);
-    servo2.write(0);
+    servo3.attach(ServoMotor::Servo3_PWM_PIN);
+    servo1.write(ServoMotor::SERVO1_MAX_ANGLE);
+    servo2.write(ServoMotor::SERVO2_MIN_ANGLE);
+    servo3.write(ServoMotor::SERVO3_MIN_ANGLE);
     
-    initTimer1_20ms();
+    initControlTimer20ms();
 
     pinMode(MotorPins::STBY1, OUTPUT);
     pinMode(MotorPins::STBY2, OUTPUT);
@@ -81,7 +200,7 @@ void setup() {
     digitalWrite(MotorPins::STBY2, HIGH);
 
     delay(100);
-    Serial.println("Motor1~Motor4 + Servo1/Servo2 Test Started");
+    Serial.println("Motor1~Motor4 + Servo1/Servo2/Servo3 Test Started");
 }
 
 void loop() {
@@ -96,6 +215,7 @@ void loop() {
             lastCh1 = ch1;
             lastTargetCount = mapC1ToTargetCountLUT(ch1);
         } else {
+            lastCh1 = CommsMapConfig::C1_CENTER;
             lastTargetCount = 0;
         }
 
@@ -145,27 +265,85 @@ void loop() {
         // Servo control (independent of motor test mode)
         uint16_t ch5 = ibus.readChannel(5);
         uint16_t ch2 = ibus.readChannel(2);
+        uint16_t ch4 = ibus.readChannel(4);
         
-        if (ch5 >= CommsMapConfig::SERVO_MIN && ch5 <= CommsMapConfig::SERVO_MAX) {
-            lastServo1Angle = mapChannelToServoAngle(ch5);
-            servo1.write(lastServo1Angle);
+        if (ch5 >= ServoMotor::INPUT_MIN && ch5 <= ServoMotor::INPUT_MAX) {
+            uint8_t cmdAngle1 = lastServo1Angle;
+            uint16_t filteredCh1 = servo1Filter.updateWithEndpointSnap(ch5,
+                                                                        ServoMotor::INPUT_MIN,
+                                                                        ServoMotor::INPUT_MAX,
+                                                                        SERVO_FILTER_SHIFT_S1_S3,
+                                                                        ServoMotor::ENDPOINT_BAND);
+            cmdAngle1 = mapServo1DiscreteWithHysteresis(filteredCh1, lastServo1Angle);
+            if (cmdAngle1 != lastServo1Angle) {
+                if (cmdAngle1 == servo1PendingAngle) {
+                    if (servo1SwitchCount < SERVO_SWITCH_CONFIRM_COUNT) {
+                        servo1SwitchCount++;
+                    }
+                } else {
+                    servo1PendingAngle = cmdAngle1;
+                    servo1SwitchCount = 1;
+                }
+
+                if (servo1SwitchCount >= SERVO_SWITCH_CONFIRM_COUNT &&
+                    abs(static_cast<int16_t>(cmdAngle1) - static_cast<int16_t>(lastServo1Angle)) >= SERVO_WRITE_DEADBAND_S1_S3) {
+                    lastServo1Angle = cmdAngle1;
+                    servo1.write(lastServo1Angle);
+                    servo1SwitchCount = 0;
+                }
+            } else {
+                servo1SwitchCount = 0;
+            }
         }
         
-        if (ch2 >= CommsMapConfig::SERVO_MIN && ch2 <= CommsMapConfig::SERVO_MAX) {
-            lastServo2Angle = mapChannelToServoAngle(ch2);
-            servo2.write(lastServo2Angle);
+        if (ch2 >= ServoMotor::INPUT_MIN && ch2 <= ServoMotor::INPUT_MAX) {
+            uint8_t cmdAngle2 = lastServo2Angle;
+            uint16_t filteredCh2 = servo2Filter.updateWithEndpointSnap(ch2,
+                                                                        ServoMotor::INPUT_MIN,
+                                                                        ServoMotor::INPUT_MAX,
+                                                                        SERVO_FILTER_SHIFT_S2,
+                                                                        ServoMotor::ENDPOINT_BAND);
+            cmdAngle2 = mapServo2Lookup(filteredCh2);
+            if (abs(static_cast<int16_t>(cmdAngle2) - static_cast<int16_t>(lastServo2Angle)) >= SERVO_WRITE_DEADBAND_S2) {
+                lastServo2Angle = cmdAngle2;
+                servo2.write(lastServo2Angle);
+            }
+        }
+
+        if (ch4 >= ServoMotor::INPUT_MIN && ch4 <= ServoMotor::INPUT_MAX) {
+            uint8_t cmdAngle3 = lastServo3Angle;
+            uint16_t filteredCh3 = servo3Filter.updateWithEndpointSnap(ch4,
+                                                                        ServoMotor::INPUT_MIN,
+                                                                        ServoMotor::INPUT_MAX,
+                                                                        SERVO_FILTER_SHIFT_S1_S3,
+                                                                        ServoMotor::ENDPOINT_BAND);
+            cmdAngle3 = mapServo3DiscreteWithHysteresis(filteredCh3, lastServo3Angle);
+            if (cmdAngle3 != lastServo3Angle) {
+                if (cmdAngle3 == servo3PendingAngle) {
+                    if (servo3SwitchCount < SERVO_SWITCH_CONFIRM_COUNT) {
+                        servo3SwitchCount++;
+                    }
+                } else {
+                    servo3PendingAngle = cmdAngle3;
+                    servo3SwitchCount = 1;
+                }
+
+                if (servo3SwitchCount >= SERVO_SWITCH_CONFIRM_COUNT &&
+                    abs(static_cast<int16_t>(cmdAngle3) - static_cast<int16_t>(lastServo3Angle)) >= SERVO_WRITE_DEADBAND_S1_S3) {
+                    lastServo3Angle = cmdAngle3;
+                    servo3.write(lastServo3Angle);
+                    servo3SwitchCount = 0;
+                }
+            } else {
+                servo3SwitchCount = 0;
+            }
         }
     }
 
     // 10Hz 輸出監看資料給 Serial Monitor / Plotter
     if (millis() - lastPrintMs >= 100) {
         lastPrintMs = millis();
-        Serial.print("CH1:");
-        Serial.print(lastCh1);
-        Serial.print(",Target:");
-        Serial.print(lastTargetCount);
-        Serial.print(",CmdPWM:");
-        Serial.print(lastPwmCmd);
+
     #if MOTOR_TEST_MODE == 1
         Serial.print(",Speed1(OL):");
         Serial.print(lastSpeedOL1);
@@ -176,26 +354,17 @@ void loop() {
         Serial.print(",Speed4(OL):");
         Serial.print(lastSpeedOL4);
     #endif
-        Serial.print(",Speed1:");
-        Serial.print(motor1.getCurrentSpeed());
-        Serial.print(",PWM1:");
-        Serial.print(motor1.getLastPWM());
-        Serial.print(",Speed2:");
-        Serial.print(motor2.getCurrentSpeed());
-        Serial.print(",PWM2:");
-        Serial.print(motor2.getLastPWM());
-        Serial.print(",Speed3:");
-        Serial.print(motor3.getCurrentSpeed());
-        Serial.print(",PWM3:");
-        Serial.print(motor3.getLastPWM());
-        Serial.print(",Speed4:");
-        Serial.print(motor4.getCurrentSpeed());
-        Serial.print(",PWM4:");
-        Serial.print(motor4.getLastPWM());
+
         Serial.print(",Servo1Angle:");
         Serial.print(lastServo1Angle);
+        Serial.print(",CH2Raw:");
+
+        Serial.print(",CH2F:");
+
         Serial.print(",Servo2Angle:");
-        Serial.println(lastServo2Angle);
+        Serial.print(lastServo2Angle);
+        Serial.print(",Servo3Angle:");
+        Serial.println(lastServo3Angle);
     }
 }
 

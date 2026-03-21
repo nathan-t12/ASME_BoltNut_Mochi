@@ -14,6 +14,20 @@ private:
     int16_t previousValue;
 };
 
+class ServoInputFilter {
+public:
+    ServoInputFilter(uint16_t initialValue);
+    uint16_t updateWithEndpointSnap(uint16_t inputValue,
+                                    uint16_t minValue,
+                                    uint16_t maxValue,
+                                    uint8_t filterShift,
+                                    uint8_t endpointBand);
+    void reset(uint16_t value);
+
+private:
+    uint16_t filteredValue;
+};
+
 
 
 

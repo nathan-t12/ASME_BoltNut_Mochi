@@ -86,7 +86,7 @@ void Motor::encoderISR() {
 
 volatile bool timerFlag = false;
 
-void initTimer1_20ms() {
+void initControlTimer20ms() {
     noInterrupts();
     // Use Timer2 (8-bit) to avoid Servo library conflicts on 16-bit timers.
     // 16MHz / 1024 = 15625Hz, OCR2A=155 -> ~9.984ms per interrupt.

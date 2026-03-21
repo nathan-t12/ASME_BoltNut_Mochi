@@ -22,6 +22,35 @@ void Filter::reset() {
     previousValue = 0;
 }
 
+ServoInputFilter::ServoInputFilter(uint16_t initialValue)
+    : filteredValue(initialValue)
+{
+}
+
+uint16_t ServoInputFilter::updateWithEndpointSnap(uint16_t inputValue,
+                                                  uint16_t minValue,
+                                                  uint16_t maxValue,
+                                                  uint8_t filterShift,
+                                                  uint8_t endpointBand) {
+    if (inputValue <= static_cast<uint16_t>(minValue + endpointBand)) {
+        filteredValue = minValue;
+        return filteredValue;
+    }
+
+    if (inputValue >= static_cast<uint16_t>(maxValue - endpointBand)) {
+        filteredValue = maxValue;
+        return filteredValue;
+    }
+
+    int16_t delta = static_cast<int16_t>(inputValue) - static_cast<int16_t>(filteredValue);
+    filteredValue += static_cast<int16_t>(delta >> filterShift);
+    return filteredValue;
+}
+
+void ServoInputFilter::reset(uint16_t value) {
+    filteredValue = value;
+}
+
 PID_Controller::PID_Controller(float p, float i, float d) 
     : Kp(static_cast<int16_t>(p * PidConfig::SCALE_FACTOR))
     , Ki(static_cast<int32_t>(i * PidConfig::SCALE_FACTOR * PidConfig::timeStep))
