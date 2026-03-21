@@ -88,18 +88,26 @@ volatile bool timerFlag = false;
 
 void initTimer1_20ms() {
     noInterrupts();
-    TCCR1A = 0;
-    TCCR1B = 0;
-    TCNT1 = 0;
-    OCR1A = 39999;            // 20ms @ 16MHz, Prescaler 8
-    TCCR1B |= (1 << WGM12);   // CTC Mode
-    TCCR1B |= (1 << CS11);    // Prescaler 8
-    TIMSK1 |= (1 << OCIE1A);  // Enable Interrupt
+    // Use Timer2 (8-bit) to avoid Servo library conflicts on 16-bit timers.
+    // 16MHz / 1024 = 15625Hz, OCR2A=155 -> ~9.984ms per interrupt.
+    // Accumulate 2 ticks to get ~19.968ms control period.
+    TCCR2A = 0;
+    TCCR2B = 0;
+    TCNT2 = 0;
+    OCR2A = 155;
+    TCCR2A |= (1 << WGM21);                       // CTC Mode
+    TCCR2B |= (1 << CS22) | (1 << CS21) | (1 << CS20); // Prescaler 1024
+    TIMSK2 |= (1 << OCIE2A);                      // Enable Compare Match A interrupt
     interrupts();
 }
 
-ISR(TIMER1_COMPA_vect) {
-    timerFlag = true;
+ISR(TIMER2_COMPA_vect) {
+    static uint8_t tickDiv = 0;
+    tickDiv++;
+    if (tickDiv >= 2) {
+        tickDiv = 0;
+        timerFlag = true;
+    }
 }
 
 
