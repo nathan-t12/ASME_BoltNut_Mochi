@@ -4,7 +4,6 @@
 #include <Arduino.h>
 // ========== 腳位定義 ==========
 
-// Encoder
 // maxcount 38
 // mincount 8
 
@@ -43,6 +42,14 @@ namespace MotorPins {
 };
 
 // Servo Motor
+namespace ServoMotor
+{
+    constexpr uint8_t Servo1_PWM_PIN = 10;
+    constexpr uint8_t Servo2_PWM_PIN = 40;
+    constexpr uint8_t Servo3_PWM_PIN = 41;
+    
+}
+
 
 // FlySky
 

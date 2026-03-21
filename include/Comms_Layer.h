@@ -31,8 +31,15 @@ namespace CommsMapConfig {
 	constexpr uint16_t C1_DEADBAND = 20;
 	constexpr int16_t TARGET_MIN_COUNT = 5;
 	constexpr int16_t TARGET_MAX_COUNT = 35;
+
+	// Servo mapping: 1000 -> 0°, 2000 -> 90°
+	constexpr uint16_t SERVO_MIN = 1000;
+	constexpr uint16_t SERVO_MAX = 2000;
+	constexpr uint8_t SERVO_MIN_ANGLE = 0;
+	constexpr uint8_t SERVO_MAX_ANGLE = 90;
 }
 
 int16_t mapC1ToTargetCountLUT(uint16_t c1);
+uint8_t mapChannelToServoAngle(uint16_t chValue);
 
 #endif

@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Servo.h>
 #include "Math_Layer.h"
 #include "Hardware_Layer.h"
 #include "Comms_Layer.h"
@@ -22,6 +23,9 @@ Motor motor3(PidConfig::PID_KP, PidConfig::PID_KI, PidConfig::PID_KD,
 
 Motor motor4(PidConfig::PID_KP, PidConfig::PID_KI, PidConfig::PID_KD,
              MotorPins::M4_PWM_PIN, MotorPins::M4_DIR_PIN1, MotorPins::M4_DIR_PIN2, MotorPins::M4_ENCODER_PIN1, MotorPins::M4_ENCODER_PIN2);
+
+Servo servo1;
+Servo servo2;
 
 void motor1EncoderISR() {
     motor1.encoderISR();
@@ -47,6 +51,8 @@ int16_t lastSpeedOL1 = 0;
 int16_t lastSpeedOL2 = 0;
 int16_t lastSpeedOL3 = 0;
 int16_t lastSpeedOL4 = 0;
+uint8_t lastServo1Angle = 0;
+uint8_t lastServo2Angle = 0;
 
 void setup() {
     Serial.begin(115200);
@@ -56,6 +62,12 @@ void setup() {
     motor2.begin();
     motor3.begin();
     motor4.begin();
+    
+    servo1.attach(ServoMotor::Servo1_PWM_PIN);
+    servo2.attach(ServoMotor::Servo2_PWM_PIN);
+    servo1.write(0);
+    servo2.write(0);
+    
     initTimer1_20ms();
 
     pinMode(MotorPins::STBY1, OUTPUT);
@@ -69,7 +81,7 @@ void setup() {
     digitalWrite(MotorPins::STBY2, HIGH);
 
     delay(100);
-    Serial.println("Motor1~Motor4 Test Started (C1 -> command -> M1/M2/M3/M4)");
+    Serial.println("Motor1~Motor4 + Servo1/Servo2 Test Started");
 }
 
 void loop() {
@@ -129,6 +141,20 @@ void loop() {
         lastSpeedOL3 = motor3.getCurrentSpeed();
         lastSpeedOL4 = motor4.getCurrentSpeed();
 #endif
+        
+        // Servo control (independent of motor test mode)
+        uint16_t ch5 = ibus.readChannel(5);
+        uint16_t ch2 = ibus.readChannel(2);
+        
+        if (ch5 >= CommsMapConfig::SERVO_MIN && ch5 <= CommsMapConfig::SERVO_MAX) {
+            lastServo1Angle = mapChannelToServoAngle(ch5);
+            servo1.write(lastServo1Angle);
+        }
+        
+        if (ch2 >= CommsMapConfig::SERVO_MIN && ch2 <= CommsMapConfig::SERVO_MAX) {
+            lastServo2Angle = mapChannelToServoAngle(ch2);
+            servo2.write(lastServo2Angle);
+        }
     }
 
     // 10Hz 輸出監看資料給 Serial Monitor / Plotter
@@ -165,7 +191,11 @@ void loop() {
         Serial.print(",Speed4:");
         Serial.print(motor4.getCurrentSpeed());
         Serial.print(",PWM4:");
-        Serial.println(motor4.getLastPWM());
+        Serial.print(motor4.getLastPWM());
+        Serial.print(",Servo1Angle:");
+        Serial.print(lastServo1Angle);
+        Serial.print(",Servo2Angle:");
+        Serial.println(lastServo2Angle);
     }
 }
 

@@ -1,8 +1,8 @@
 #ifndef HARDWARE_LAYER_H
 #define HARDWARE_LAYER_H
-#include "Math_Layer.h"
-#include <Arduino.h>
 #pragma once
+#include <Arduino.h>
+#include "Math_Layer.h"
 
 extern volatile bool timerFlag; 
 

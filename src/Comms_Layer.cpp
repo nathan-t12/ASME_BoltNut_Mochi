@@ -30,3 +30,14 @@ int16_t mapC1ToTargetCountLUT(uint16_t c1) {
     int16_t count = static_cast<int16_t>(kCubicCountTable[index]);
     return (delta >= 0) ? count : -count;
 }
+
+uint8_t mapChannelToServoAngle(uint16_t chValue) {
+    uint16_t clamped = constrain(chValue, CommsMapConfig::SERVO_MIN, CommsMapConfig::SERVO_MAX);
+    uint16_t span = CommsMapConfig::SERVO_MAX - CommsMapConfig::SERVO_MIN;
+    uint16_t offset = clamped - CommsMapConfig::SERVO_MIN;
+    uint8_t angle = static_cast<uint8_t>(
+        CommsMapConfig::SERVO_MIN_ANGLE +
+        (static_cast<uint32_t>(offset) * (CommsMapConfig::SERVO_MAX_ANGLE - CommsMapConfig::SERVO_MIN_ANGLE)) / span
+    );
+    return angle;
+}
