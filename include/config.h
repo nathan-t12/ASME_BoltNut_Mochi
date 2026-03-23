@@ -4,7 +4,6 @@
 #include <Arduino.h>
 // ========== 腳位定義 ==========
 
-// Encoder
 // maxcount 38
 // mincount 8
 
@@ -19,8 +18,8 @@ namespace MotorPins {
 
     //1B
     constexpr uint8_t M2_PWM_PIN = 7;
-    constexpr uint8_t M2_DIR_PIN1 = 34;
-    constexpr uint8_t M2_DIR_PIN2 = 35;
+    constexpr uint8_t M2_DIR_PIN1 = 35;
+    constexpr uint8_t M2_DIR_PIN2 = 34;
     constexpr uint8_t M2_ENCODER_PIN1 = 20; // Interrupt Pin
     constexpr uint8_t M2_ENCODER_PIN2 = 21; // Interrupt Pin
 
@@ -33,8 +32,8 @@ namespace MotorPins {
 
     //2B
     constexpr uint8_t M4_PWM_PIN = 5;
-    constexpr uint8_t M4_DIR_PIN1 = 30;
-    constexpr uint8_t M4_DIR_PIN2 = 31;
+    constexpr uint8_t M4_DIR_PIN1 = 31;
+    constexpr uint8_t M4_DIR_PIN2 = 30;
     constexpr uint8_t M4_ENCODER_PIN1 = 3; // Interrupt Pin
     constexpr uint8_t M4_ENCODER_PIN2 = 9; // Interrupt Pin
 
@@ -43,6 +42,34 @@ namespace MotorPins {
 };
 
 // Servo Motor
+namespace ServoMotor
+{
+    constexpr uint8_t Servo1_PWM_PIN = 10;
+    constexpr uint8_t Servo2_PWM_PIN = 40;
+    constexpr uint8_t Servo3_PWM_PIN = 41;
+
+    constexpr uint16_t INPUT_MIN = 1000;
+    constexpr uint16_t INPUT_MAX = 2000;
+    constexpr uint8_t FILTER_SHIFT = 3;
+    constexpr uint8_t WRITE_DEADBAND = 2;
+    constexpr uint8_t ENDPOINT_BAND = 20;
+
+    constexpr uint8_t SERVO1_MIN_ANGLE = 0;
+    constexpr uint8_t SERVO1_MAX_ANGLE = 90;
+
+    constexpr uint8_t SERVO2_MIN_ANGLE = 25;
+    constexpr uint8_t SERVO2_MAX_ANGLE = 170;
+
+    constexpr uint8_t SERVO3_MIN_ANGLE = 50;
+    constexpr uint8_t SERVO3_MAX_ANGLE = 115;
+
+    constexpr uint16_t SERVO3_CENTER_INPUT = 1500;
+    constexpr uint8_t SERVO3_LEFT_ANGLE = 66;    // at INPUT_MIN
+    constexpr uint8_t SERVO3_PEAK_ANGLE = 115;   // at CENTER_INPUT
+    constexpr uint8_t SERVO3_RIGHT_ANGLE = 63;   // at INPUT_MAX
+    
+}
+
 
 // FlySky
 

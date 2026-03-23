@@ -1,12 +1,12 @@
 #ifndef HARDWARE_LAYER_H
 #define HARDWARE_LAYER_H
-#include "Math_Layer.h"
-#include <Arduino.h>
 #pragma once
+#include <Arduino.h>
+#include "Math_Layer.h"
 
 extern volatile bool timerFlag; 
 
-void initTimer1_20ms(); // 初始化函式的宣告
+void initControlTimer20ms(); // 初始化函式的宣告
 
 class Motor{
     public:
