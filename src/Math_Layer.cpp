@@ -51,6 +51,45 @@ void ServoInputFilter::reset(uint16_t value) {
     filteredValue = value;
 }
 
+uint8_t mapServo2Lookup(uint16_t chValue) {
+    // Lookup table with focus on endpoint certainty.
+    static constexpr uint16_t kInputTable[] = {1000, 1200, 1400, 1600, 1800, 2000};
+    static constexpr uint8_t kAngleTable[] = {180, 170, 145, 105, 55, ServoMotor::SERVO2_MIN_ANGLE};
+
+    if (chValue <= kInputTable[0]) {
+        return kAngleTable[0];
+    }
+    if (chValue >= kInputTable[5]) {
+        return kAngleTable[5];
+    }
+
+    for (uint8_t i = 0; i < 5; ++i) {
+        uint16_t x0 = kInputTable[i];
+        uint16_t x1 = kInputTable[i + 1];
+        if (chValue <= x1) {
+            uint8_t y0 = kAngleTable[i];
+            uint8_t y1 = kAngleTable[i + 1];
+            uint16_t dx = x1 - x0;
+            uint16_t ox = chValue - x0;
+            uint8_t angle = static_cast<uint8_t>(
+                y0 + (static_cast<int16_t>(y1) - static_cast<int16_t>(y0)) * static_cast<int16_t>(ox) / static_cast<int16_t>(dx));
+            return angle;
+        }
+    }
+
+    return kAngleTable[5];
+}
+
+uint8_t mapServo3CenterPeak(uint16_t chValue) {
+    // Requested mapping:
+    // 1000 -> 61, 1500 -> 115 (max), 2000 -> 57
+    uint16_t clamped = constrain(chValue, ServoMotor::INPUT_MIN, ServoMotor::INPUT_MAX);
+    if (clamped <= 1500) {
+        return static_cast<uint8_t>(61 + (static_cast<uint32_t>(clamped - 1000) * (115 - 61)) / 500);
+    }
+    return static_cast<uint8_t>(115 - (static_cast<uint32_t>(clamped - 1500) * (115 - 57)) / 500);
+}
+
 PID_Controller::PID_Controller(float p, float i, float d) 
     : Kp(static_cast<int16_t>(p * PidConfig::SCALE_FACTOR))
     , Ki(static_cast<int32_t>(i * PidConfig::SCALE_FACTOR * PidConfig::timeStep))

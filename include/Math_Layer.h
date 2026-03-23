@@ -28,6 +28,9 @@ private:
     uint16_t filteredValue;
 };
 
+uint8_t mapServo2Lookup(uint16_t chValue);
+uint8_t mapServo3CenterPeak(uint16_t chValue);
+
 
 
 
