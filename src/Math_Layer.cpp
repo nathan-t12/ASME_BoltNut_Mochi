@@ -81,13 +81,20 @@ uint8_t mapServo2Lookup(uint16_t chValue) {
 }
 
 uint8_t mapServo3CenterPeak(uint16_t chValue) {
-    // Requested mapping:
-    // 1000 -> 61, 1500 -> 115 (max), 2000 -> 57
+    // Piecewise mapping: INPUT_MIN -> LEFT_ANGLE, CENTER_INPUT -> PEAK_ANGLE, INPUT_MAX -> RIGHT_ANGLE
     uint16_t clamped = constrain(chValue, ServoMotor::INPUT_MIN, ServoMotor::INPUT_MAX);
-    if (clamped <= 1500) {
-        return static_cast<uint8_t>(61 + (static_cast<uint32_t>(clamped - 1000) * (115 - 61)) / 500);
+    if (clamped <= ServoMotor::SERVO3_CENTER_INPUT) {
+        return static_cast<uint8_t>(
+            ServoMotor::SERVO3_LEFT_ANGLE +
+            (static_cast<uint32_t>(clamped - ServoMotor::INPUT_MIN) *
+             (ServoMotor::SERVO3_PEAK_ANGLE - ServoMotor::SERVO3_LEFT_ANGLE)) /
+            (ServoMotor::SERVO3_CENTER_INPUT - ServoMotor::INPUT_MIN));
     }
-    return static_cast<uint8_t>(115 - (static_cast<uint32_t>(clamped - 1500) * (115 - 57)) / 500);
+    return static_cast<uint8_t>(
+        ServoMotor::SERVO3_PEAK_ANGLE -
+        (static_cast<uint32_t>(clamped - ServoMotor::SERVO3_CENTER_INPUT) *
+         (ServoMotor::SERVO3_PEAK_ANGLE - ServoMotor::SERVO3_RIGHT_ANGLE)) /
+        (ServoMotor::INPUT_MAX - ServoMotor::SERVO3_CENTER_INPUT));
 }
 
 PID_Controller::PID_Controller(float p, float i, float d) 

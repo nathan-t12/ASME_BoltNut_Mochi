@@ -1,141 +1,173 @@
-# ASME_1 專案規範與開發指南
+# ASME_1
 
-這是一個基於 PlatformIO 開發的 Arduino Mega 2560 專案。為了確保團隊開發順利，請所有開發成員務必遵守以下規範。
+ASME_1 是一個基於 Arduino Mega 2560 的多馬達/多伺服控制專案，
+使用 IBus 遙控通道作為輸入，整合以下能力：
 
----
+1. 4 顆 DC 馬達（含編碼器）
+2. 3 顆伺服馬達
+3. 開迴路與閉迴路雙模式
+4. LUT（查表）映射優化，降低即時計算負擔
 
-## 🛠 開發環境設定
+## 功能總覽
 
-- **IDE**: VS Code
-- **Plugin**: PlatformIO IDE
-- **Board**: Arduino Mega 2560
-- **Baud Rate**: 115200 (請確保程式碼與設定檔一致)
+1. 馬達控制
+- 閉迴路模式：C1 經 LUT 映射為目標計數，進入 PID 控制。
+- 開迴路模式：C1 與 C3 都經 LUT，形成前進/轉向混控。
+- 4 輪混控：左側（M1/M3）、右側（M2/M4）差速控制。
 
----
+2. 伺服控制
+- Servo1：離散三段角（含遲滯邏輯，減少邊界抖動）。
+- Servo2：查表角度映射（重視極值），並保留診斷輸出。
+- Servo3：中心峰值分段映射（C0 輸入，1500 對應峰值）。
 
-## 🌿 Git 分支管理
+3. 時脈與中斷
+- 控制迴圈使用 Timer2 產生約 20ms 旗標，避免與 Servo 函式庫衝突。
+- 伺服由 Arduino Servo 函式庫控制。
+- 4 路 encoder 中斷輸入用於速度回授。
 
-為了保護主分支（`main`）的穩定性，請遵循以下流程：
+## 軟體架構
 
-- ⛔ **禁止直接推送到 `main` 分支**
+1. 通訊與映射層
+- 檔案：include/Comms_Layer.h, src/Comms_Layer.cpp
+- 責任：通道數值轉換、LUT 映射（C1/C3 等）
 
-### 開發流程
+2. 數學層
+- 檔案：include/Math_Layer.h, src/Math_Layer.cpp
+- 責任：濾波器、PID、Servo 查表映射函式
 
-1. 從 `main` 建立自己的開發分支：
-   ```bash
-   git checkout -b feat/your-feature-name
-   ```
+3. 硬體層
+- 檔案：include/Hardware_Layer.h, src/Hardware_Layer.cpp
+- 責任：PWM 輸出、方向控制、encoder 計數、控制時序旗標
 
-2. 完成功能後，再發起 **Pull Request (PR)** 進行合併。
+4. 主控流程
+- 檔案：src/main.cpp
+- 責任：整合遙控輸入、模式切換、馬達與伺服命令下發、序列監看
 
-### ⚠️ 注意
+## 通道與控制對應
 
-- 在每次 `push` 之前，請務必先執行 `git pull` 以確保本地端程式碼與遠端同步。
-- 🚫 **絕對禁止** 使用 `git push --force`。
+1. C1：前進/後退
+- 閉迴路：C1 -> 目標計數（LUT）-> PID
+- 開迴路：C1 -> 基礎 PWM（LUT）
 
+2. C3：轉向
+- 開迴路：C3 -> 轉向 PWM（LUT）
 
-- 請注意記憶體配置問題
-   - int16_t : -32,768~32,767
-   - uint16_t : 0 ~ 65,535
-   - int32_t : +- 21億
----
+3. C5：Servo1
+- 離散三段（0 / 45 / 90）+ 遲滯
 
-## 📝 Commit 提交規範
+4. C2：Servo2
+- 查表映射（極值優先）
 
-提交訊息請統一使用 **`動詞: 描述內容`** 的格式。
+5. C0：Servo3
+- 中心峰值映射：
+  - INPUT_MIN（1000）-> SERVO3_LEFT_ANGLE
+  - SERVO3_CENTER_INPUT（1500）-> SERVO3_PEAK_ANGLE
+  - INPUT_MAX（2000）-> SERVO3_RIGHT_ANGLE
 
-### 常用動詞
+## 馬達實作細節
 
-- `init`: 專案初始化
-- `add`: 新增功能、檔案或函式庫
-- `fix`: 修復錯誤（Bug）
-- `docs`: 修改文件（如 README）
-- `refactor`: 重構程式碼（不影響功能的結構調整）
-- `hotfix`: 緊急修復
-- `feat`: 完成功能
+1. 閉迴路模式
+- 每次控制週期讀取 encoder 增量。
+- 濾波器平滑速度估計。
+- PID 計算輸出並限制於 PWM 範圍。
 
-### 範例
+2. 開迴路模式
+- C1 LUT 得到 BasePWM。
+- C3 LUT 得到 TurnPWM。
+- 左右輪命令：
+  - Left = constrain(BasePWM + TurnPWM)
+  - Right = constrain(BasePWM - TurnPWM)
 
+3. 安全與健壯性
+- 遙控讀值超界時回中心或安全值。
+- encoder 異常尖峰過濾。
+- 目標為零時提供停止/重置控制狀態。
+
+## 伺服實作細節
+
+1. Servo1（離散）
+- 透過輸入濾波與遲滯減少門檻附近跳動。
+
+2. Servo2（查表）
+- 使用 mapServo2Lookup，查表加分段內插。
+- 監看輸出含 CH2Raw、CH2F、Servo2Angle，便於診斷。
+
+3. Servo3（中心峰值）
+- 使用 mapServo3CenterPeak。
+- 主要參數集中於 config.h 的 ServoMotor namespace：
+  - SERVO3_CENTER_INPUT
+  - SERVO3_LEFT_ANGLE
+  - SERVO3_PEAK_ANGLE
+  - SERVO3_RIGHT_ANGLE
+
+## 主要設定參數
+
+1. 腳位與伺服參數
+- 檔案：include/config.h
+- 內容：馬達腳位、伺服腳位、伺服映射參數
+
+2. 通道映射常數
+- 檔案：include/Comms_Layer.h
+- 內容：C1/C3 deadband、範圍與 LUT 對應常數
+
+3. 控制與濾波
+- 檔案：include/config.h
+- 內容：PidConfig、FilterConfig
+
+## 序列監看輸出
+
+目前主程式會週期輸出以下資訊（用於調機與除錯）：
+
+1. CH1, CH3
+2. BasePWM, TurnPWM
+3. Lcmd, Rcmd
+4. Speed1~Speed4（開迴路回授）
+5. Servo1Angle, Servo2Angle, Servo3Angle
+6. CH2Raw, CH2F（Servo2 診斷）
+
+## 開發與執行
+
+1. 環境
+- VS Code + PlatformIO
+- Board: megaatmega2560
+
+2. 編譯
+```bash
+pio run -e megaatmega2560
 ```
-add: 新增伺服馬達夾取邏輯
-fix: 修正感測器讀取錯誤
-docs: 更新 README 開發規範
+
+3. 上傳
+```bash
+pio run -e megaatmega2560 --target upload --upload-port COM10
 ```
 
----
-
-## 💻 程式碼風格 (Coding Style)
-
-為了保持程式碼的可讀性，請遵守以下命名規則：
-
-| 類型 | 規則 | 範例 |
-|------|------|------|
-| 變數 / 函式 | lowerCamelCase (小駝峰) | `motorSpeed`, `getSensorData()` |
-| 類別 (Class) | PascalCase (大駝峰) | `ArmController` |
-| 常量 / 宏 | SCREAMING_SNAKE (全大寫) | `MAX_PWM`, `SERVO_PIN` |
-| 檔案名稱 | snake_case (蛇形命名) | `motor_control.cpp` |
-
----
-
-## ⚙️ 硬體與函式庫管理
-
-### 硬體定義
-
-- 🚫 **禁止**在 `src` 的邏輯程式中直接使用「魔術數字」（例如：`digitalWrite(13, HIGH)`）。
-- ✅ 請將所有腳位皆有定義，請到config.h查看或更改
-
-### 函式庫管理
-
-- 🚫 **禁止**手動下載 `.zip` 檔放置於專案內。
-- ✅ 所有需要的函式庫必須寫在 `platformio.ini` 的 `lib_deps` 中。
-- 如果不知道怎麼寫請看教學有教
-
----
-
-## 📂 專案結構簡述
-
+4. 監看序列埠
+```bash
+pio device monitor -b 115200
 ```
+
+## 專案目錄
+
+```text
 ASME_1/
-├── .pio/            # 編譯產物 (已自動忽略，勿上傳)
-├── include/         # 放置標頭檔 (.h)，如 config.h
-├── lib/             # 自訂函式庫目錄
-├── src/             # 放置主要的原始碼 (.cpp, .ino)
-│   └── main.cpp     # 主程式入口
-├── test/            # 測試程式目錄
-├── platformio.ini   # 專案環境設定檔
-└── README.md        # 專案說明文件
+├── include/
+│   ├── config.h
+│   ├── Comms_Layer.h
+│   ├── Hardware_Layer.h
+│   └── Math_Layer.h
+├── src/
+│   ├── main.cpp
+│   ├── Comms_Layer.cpp
+│   ├── Hardware_Layer.cpp
+│   └── Math_Layer.cpp
+├── platformio.ini
+└── README.md
 ```
 
----
+## 後續建議
 
-## 抽象層
-
-第一層：IBUS通訊&非線性映射
-第二層：主要邏輯與 FSM
-第三層：數學演算
-第四層：硬體控制
-
----
-
-## 📦 已安裝的函式庫
-
-- `Servo` (v1.3.0) - 伺服馬達控制
-
----
-
-## 🚀 快速開始
-
-1. 安裝 PlatformIO IDE 插件
-2. 開啟專案資料夾
-3. 編譯並上傳：
-   ```bash
-   pio run --target upload
-   ```
-4. 開啟序列埠監視器：
-   ```bash
-   pio device monitor
-   ```
-
----
+1. 將 Servo1 離散門檻與遲滯常數外移到 config.h，便於現場快速調機。
+2. 增加轉向增益隨速度衰減 LUT，提升高速穩定性。
+3. 補一份實機校正紀錄（各通道端點、伺服實際角、輪組方向）方便交接。
 
 

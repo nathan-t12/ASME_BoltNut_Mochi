@@ -62,6 +62,11 @@ namespace ServoMotor
 
     constexpr uint8_t SERVO3_MIN_ANGLE = 50;
     constexpr uint8_t SERVO3_MAX_ANGLE = 115;
+
+    constexpr uint16_t SERVO3_CENTER_INPUT = 1500;
+    constexpr uint8_t SERVO3_LEFT_ANGLE = 66;    // at INPUT_MIN
+    constexpr uint8_t SERVO3_PEAK_ANGLE = 115;   // at CENTER_INPUT
+    constexpr uint8_t SERVO3_RIGHT_ANGLE = 63;   // at INPUT_MAX
     
 }
 
