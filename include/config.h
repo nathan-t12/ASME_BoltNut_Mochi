@@ -18,8 +18,8 @@ namespace MotorPins {
 
     //1B
     constexpr uint8_t M2_PWM_PIN = 7;
-    constexpr uint8_t M2_DIR_PIN1 = 34;
-    constexpr uint8_t M2_DIR_PIN2 = 35;
+    constexpr uint8_t M2_DIR_PIN1 = 35;
+    constexpr uint8_t M2_DIR_PIN2 = 34;
     constexpr uint8_t M2_ENCODER_PIN1 = 20; // Interrupt Pin
     constexpr uint8_t M2_ENCODER_PIN2 = 21; // Interrupt Pin
 
@@ -32,8 +32,8 @@ namespace MotorPins {
 
     //2B
     constexpr uint8_t M4_PWM_PIN = 5;
-    constexpr uint8_t M4_DIR_PIN1 = 30;
-    constexpr uint8_t M4_DIR_PIN2 = 31;
+    constexpr uint8_t M4_DIR_PIN1 = 31;
+    constexpr uint8_t M4_DIR_PIN2 = 30;
     constexpr uint8_t M4_ENCODER_PIN1 = 3; // Interrupt Pin
     constexpr uint8_t M4_ENCODER_PIN2 = 9; // Interrupt Pin
 

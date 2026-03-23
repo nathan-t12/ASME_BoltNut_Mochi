@@ -46,8 +46,12 @@ void motor4EncoderISR() {
 
 uint32_t lastPrintMs = 0;
 uint16_t lastCh1 = CommsMapConfig::C1_CENTER;
+uint16_t lastCh3 = CommsMapConfig::C3_CENTER;
 int16_t lastTargetCount = 0;
 int16_t lastPwmCmd = 0;
+int16_t lastTurnCmd = 0;
+int16_t lastLeftCmd = 0;
+int16_t lastRightCmd = 0;
 int16_t lastSpeedOL1 = 0;
 int16_t lastSpeedOL2 = 0;
 int16_t lastSpeedOL3 = 0;
@@ -135,6 +139,7 @@ void loop() {
         timerFlag = false;
 
         uint16_t ch1 = ibus.readChannel(1);
+        uint16_t ch3 = ibus.readChannel(3);
 
         // 接收器失效保護：讀不到資料就停車
         if (ch1 >= CommsMapConfig::C1_MIN && ch1 <= CommsMapConfig::C1_MAX) {
@@ -143,6 +148,12 @@ void loop() {
         } else {
             lastCh1 = CommsMapConfig::C1_CENTER;
             lastTargetCount = 0;
+        }
+
+        if (ch3 >= CommsMapConfig::C3_MIN && ch3 <= CommsMapConfig::C3_MAX) {
+            lastCh3 = ch3;
+        } else {
+            lastCh3 = CommsMapConfig::C3_CENTER;
         }
 
 #if MOTOR_TEST_MODE == 0
@@ -160,21 +171,18 @@ void loop() {
             lastPwmCmd = (motor1.getLastPWM() + motor2.getLastPWM() + motor3.getLastPWM() + motor4.getLastPWM()) / 4;
         }
 #else
-        // 開迴路：用 CH1 直接控制 PWM，先確認馬達與驅動硬體路徑正常
-        int16_t delta = static_cast<int16_t>(lastCh1) - static_cast<int16_t>(CommsMapConfig::C1_CENTER);
-        if (abs(delta) <= static_cast<int16_t>(CommsMapConfig::C1_DEADBAND)) {
-            lastPwmCmd = 0;
-        } else {
-            lastPwmCmd = map(delta,
-                             -500,
-                             500,
-                             PidConfig::OUTPUT_MIN,
-                             PidConfig::OUTPUT_MAX);
-        }
-        motor1.setSpeed(lastPwmCmd);
-        motor2.setSpeed(lastPwmCmd);
-        motor3.setSpeed(lastPwmCmd);
-        motor4.setSpeed(lastPwmCmd);
+        // 開迴路：CH1 前進/後退 + CH3 轉向（全 LUT）
+        lastPwmCmd = mapC1ToOpenLoopPwmLUT(lastCh1);
+        lastTurnCmd = mapC3ToTurnPwmLUT(lastCh3);
+
+        // 預設左側=M1/M3，右側=M2/M4
+        lastLeftCmd = constrain(lastPwmCmd + lastTurnCmd, PidConfig::OUTPUT_MIN, PidConfig::OUTPUT_MAX);
+        lastRightCmd = constrain(lastPwmCmd - lastTurnCmd, PidConfig::OUTPUT_MIN, PidConfig::OUTPUT_MAX);
+
+        motor1.setSpeed(lastLeftCmd);
+        motor3.setSpeed(lastLeftCmd);
+        motor2.setSpeed(lastRightCmd);
+        motor4.setSpeed(lastRightCmd);
 
         // 開迴路下仍更新回授，便於觀察速度是否有變化
         motor1.updateFeedbackOnly();
@@ -255,6 +263,19 @@ void loop() {
     // 10Hz 輸出監看資料給 Serial Monitor / Plotter
     if (millis() - lastPrintMs >= 1000) {
         lastPrintMs = millis();
+
+        Serial.print("CH1:");
+        Serial.print(lastCh1);
+        Serial.print(",CH3:");
+        Serial.print(lastCh3);
+        Serial.print(",BasePWM:");
+        Serial.print(lastPwmCmd);
+        Serial.print(",TurnPWM:");
+        Serial.print(lastTurnCmd);
+        Serial.print(",Lcmd:");
+        Serial.print(lastLeftCmd);
+        Serial.print(",Rcmd:");
+        Serial.print(lastRightCmd);
 
     #if MOTOR_TEST_MODE == 1
         Serial.print(",Speed1(OL):");
