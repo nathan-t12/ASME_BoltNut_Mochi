@@ -1,12 +1,12 @@
-# ASME_1
+# ASME_BoltNut_Mochie
 
-ASME_1 是一個基於 Arduino Mega 2560 的多馬達/多伺服控制專案，
+ASME_BoltNut_Mochie 是一個基於 Arduino Mega 2560 的多馬達/多伺服控制專案，
 使用 IBus 遙控通道作為輸入，整合以下能力：
 
 1. 4 顆 DC 馬達（含編碼器）
 2. 3 顆伺服馬達
 3. 開迴路與閉迴路雙模式
-4. LUT（查表）映射優化，降低即時計算負擔
+4. LUT 映射優化，降低即時計算負擔
 
 ## 功能總覽
 
@@ -16,12 +16,12 @@ ASME_1 是一個基於 Arduino Mega 2560 的多馬達/多伺服控制專案，
 - 4 輪混控：左側（M1/M3）、右側（M2/M4）差速控制。
 
 2. 伺服控制
-- Servo1：離散三段角（含遲滯邏輯，減少邊界抖動）。
-- Servo2：查表角度映射（重視極值），並保留診斷輸出。
-- Servo3：中心峰值分段映射（C0 輸入，1500 對應峰值）。
+- Servo1：離散三段角。
+- Servo2：查表角度映射，並保留診斷輸出。
+- Servo3：中心峰值分段映射。
 
 3. 時脈與中斷
-- 控制迴圈使用 Timer2 產生約 20ms 旗標，避免與 Servo 函式庫衝突。
+- 控制迴圈使用 Timer2 產生約 20ms Flag，避免與 Servo 函式庫衝突。
 - 伺服由 Arduino Servo 函式庫控制。
 - 4 路 encoder 中斷輸入用於速度回授。
 
@@ -46,8 +46,8 @@ ASME_1 是一個基於 Arduino Mega 2560 的多馬達/多伺服控制專案，
 ## 通道與控制對應
 
 1. C1：前進/後退
-- 閉迴路：C1 -> 目標計數（LUT）-> PID
-- 開迴路：C1 -> 基礎 PWM（LUT）
+- 閉迴路：C1 -> 目標計數 -> PID
+- 開迴路：C1 -> 基礎 PWM
 
 2. C3：轉向
 - 開迴路：C3 -> 轉向 PWM（LUT）
@@ -78,21 +78,21 @@ ASME_1 是一個基於 Arduino Mega 2560 的多馬達/多伺服控制專案，
   - Left = constrain(BasePWM + TurnPWM)
   - Right = constrain(BasePWM - TurnPWM)
 
-3. 安全與健壯性
+3. 安全性
 - 遙控讀值超界時回中心或安全值。
 - encoder 異常尖峰過濾。
 - 目標為零時提供停止/重置控制狀態。
 
 ## 伺服實作細節
 
-1. Servo1（離散）
+1. Servo1
 - 透過輸入濾波與遲滯減少門檻附近跳動。
 
-2. Servo2（查表）
+2. Servo2
 - 使用 mapServo2Lookup，查表加分段內插。
 - 監看輸出含 CH2Raw、CH2F、Servo2Angle，便於診斷。
 
-3. Servo3（中心峰值）
+3. Servo3
 - 使用 mapServo3CenterPeak。
 - 主要參數集中於 config.h 的 ServoMotor namespace：
   - SERVO3_CENTER_INPUT
@@ -164,10 +164,10 @@ ASME_1/
 └── README.md
 ```
 
-## 後續建議
+<!-- ## 後續建議
 
 1. 將 Servo1 離散門檻與遲滯常數外移到 config.h，便於現場快速調機。
 2. 增加轉向增益隨速度衰減 LUT，提升高速穩定性。
-3. 補一份實機校正紀錄（各通道端點、伺服實際角、輪組方向）方便交接。
+3. 補一份實機校正紀錄（各通道端點、伺服實際角、輪組方向）方便交接。 -->
 
 
