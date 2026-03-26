@@ -80,6 +80,8 @@ int16_t mapC3ToTurnPwmLUT(uint16_t c3) {
     index = constrain(index, 0, kTableMaxIndex);
 
     int16_t turn = static_cast<int16_t>(kTurnTable[index]);
+    turn = static_cast<int16_t>((static_cast<int32_t>(turn) * CommsMapConfig::TURN_GAIN_PERCENT) / 100);
+    turn = constrain(turn, 0, CommsMapConfig::TURN_PWM_MAX);
     return (delta >= 0) ? turn : -turn;
 }
 

@@ -63,43 +63,11 @@ uint16_t lastCh2Raw = ServoMotor::INPUT_MIN;
 uint16_t lastCh2Filtered = ServoMotor::INPUT_MIN;
 
 constexpr uint16_t SERVO_INPUT_CENTER = (ServoMotor::INPUT_MIN + ServoMotor::INPUT_MAX) / 2;
-constexpr uint8_t SERVO_DISCRETE_HYST_BAND = 35;
-constexpr uint8_t SERVO_SWITCH_CONFIRM_COUNT = 2;
-constexpr uint8_t SERVO_FILTER_SHIFT_S1_S3 = ServoMotor::FILTER_SHIFT;
-constexpr uint8_t SERVO_FILTER_SHIFT_S2 = 0;
 constexpr uint8_t SERVO_WRITE_DEADBAND_S1_S3 = ServoMotor::WRITE_DEADBAND;
 constexpr uint8_t SERVO_WRITE_DEADBAND_S2 = 0;
 ServoInputFilter servo1Filter(SERVO_INPUT_CENTER);
 ServoInputFilter servo2Filter(SERVO_INPUT_CENTER);
 ServoInputFilter servo3Filter(SERVO_INPUT_CENTER);
-
-uint8_t servo1PendingAngle = ServoMotor::SERVO1_MIN_ANGLE;
-uint8_t servo1SwitchCount = 0;
-
-static uint8_t mapServo1DiscreteWithHysteresis(uint16_t chValue, uint8_t lastAngle) {
-    // 3-level mapping with hysteresis around 1400 and 1800.
-    if (lastAngle <= 0) {
-        if (chValue >= static_cast<uint16_t>(1400 + SERVO_DISCRETE_HYST_BAND)) {
-            return 45;
-        }
-        return 0;
-    }
-
-    if (lastAngle >= 90) {
-        if (chValue <= static_cast<uint16_t>(1800 - SERVO_DISCRETE_HYST_BAND)) {
-            return 45;
-        }
-        return 90;
-    }
-
-    if (chValue <= static_cast<uint16_t>(1400 - SERVO_DISCRETE_HYST_BAND)) {
-        return 0;
-    }
-    if (chValue >= static_cast<uint16_t>(1800 + SERVO_DISCRETE_HYST_BAND)) {
-        return 90;
-    }
-    return 45;
-}
 
 void setup() {
     Serial.begin(115200);
@@ -175,14 +143,45 @@ void loop() {
         lastPwmCmd = mapC1ToOpenLoopPwmLUT(lastCh1);
         lastTurnCmd = mapC3ToTurnPwmLUT(lastCh3);
 
-        // 預設左側=M1/M3，右側=M2/M4
-        lastLeftCmd = constrain(lastPwmCmd + lastTurnCmd, PidConfig::OUTPUT_MIN, PidConfig::OUTPUT_MAX);
-        lastRightCmd = constrain(lastPwmCmd - lastTurnCmd, PidConfig::OUTPUT_MIN, PidConfig::OUTPUT_MAX);
+    const int16_t kOpenLoopMin = -DriveConfig::OPEN_LOOP_MAX_PWM;
+    const int16_t kOpenLoopMax = DriveConfig::OPEN_LOOP_MAX_PWM;
 
-        motor1.setSpeed(lastLeftCmd);
-        motor3.setSpeed(lastLeftCmd);
-        motor2.setSpeed(lastRightCmd);
-        motor4.setSpeed(lastRightCmd);
+    auto applyGainPercent = [](int16_t value, uint16_t gainPercent) -> int16_t {
+        int32_t scaled = static_cast<int32_t>(value) * gainPercent;
+        return static_cast<int16_t>(scaled / 100);
+    };
+
+    auto addSignedBoost = [](int16_t value, int16_t boost) -> int16_t {
+        if (value > 0) {
+            return static_cast<int16_t>(value + boost);
+        }
+        if (value < 0) {
+            return static_cast<int16_t>(value - boost);
+        }
+        return value;
+    };
+
+        // 預設左側=M1/M3，右側=M2/M4
+    lastLeftCmd = constrain(lastPwmCmd + lastTurnCmd, kOpenLoopMin, kOpenLoopMax);
+    lastRightCmd = constrain(lastPwmCmd - lastTurnCmd, kOpenLoopMin, kOpenLoopMax);
+
+    int16_t m1Cmd = constrain(applyGainPercent(lastLeftCmd, DriveConfig::MOTOR1_GAIN_PERCENT), kOpenLoopMin, kOpenLoopMax);
+    int16_t m2Cmd = constrain(applyGainPercent(lastRightCmd, DriveConfig::MOTOR2_GAIN_PERCENT), kOpenLoopMin, kOpenLoopMax);
+    int16_t m3Cmd = constrain(applyGainPercent(lastLeftCmd, DriveConfig::MOTOR3_GAIN_PERCENT), kOpenLoopMin, kOpenLoopMax);
+    int16_t m4Cmd = constrain(applyGainPercent(lastRightCmd, DriveConfig::MOTOR4_GAIN_PERCENT), kOpenLoopMin, kOpenLoopMax);
+
+    const bool isLowSpeed = abs(lastPwmCmd) <= DriveConfig::LOW_SPEED_BASE_PWM_THRESHOLD;
+    const bool isRightTurn = (DriveConfig::RIGHT_TURN_SIGN > 0) ? (lastTurnCmd > 0) : (lastTurnCmd < 0);
+    
+    if (isLowSpeed && isRightTurn) {
+        m2Cmd = constrain(addSignedBoost(m2Cmd, DriveConfig::M4_RIGHT_TURN_BOOST_PWM), kOpenLoopMin, kOpenLoopMax);
+        m4Cmd = constrain(addSignedBoost(m4Cmd, DriveConfig::M4_RIGHT_TURN_BOOST_PWM), kOpenLoopMin, kOpenLoopMax);
+    }
+
+    motor1.setSpeed(m1Cmd);
+    motor2.setSpeed(m2Cmd);
+    motor3.setSpeed(m3Cmd);
+    motor4.setSpeed(m4Cmd);
 
         // 開迴路下仍更新回授，便於觀察速度是否有變化
         motor1.updateFeedbackOnly();
@@ -206,27 +205,12 @@ void loop() {
             uint16_t filteredCh1 = servo1Filter.updateWithEndpointSnap(ch5,
                                                                         ServoMotor::INPUT_MIN,
                                                                         ServoMotor::INPUT_MAX,
-                                                                        SERVO_FILTER_SHIFT_S1_S3,
+                                                                        ServoMotor::FILTER_SHIFT_S1,
                                                                         ServoMotor::ENDPOINT_BAND);
-            cmdAngle1 = mapServo1DiscreteWithHysteresis(filteredCh1, lastServo1Angle);
-            if (cmdAngle1 != lastServo1Angle) {
-                if (cmdAngle1 == servo1PendingAngle) {
-                    if (servo1SwitchCount < SERVO_SWITCH_CONFIRM_COUNT) {
-                        servo1SwitchCount++;
-                    }
-                } else {
-                    servo1PendingAngle = cmdAngle1;
-                    servo1SwitchCount = 1;
-                }
-
-                if (servo1SwitchCount >= SERVO_SWITCH_CONFIRM_COUNT &&
-                    abs(static_cast<int16_t>(cmdAngle1) - static_cast<int16_t>(lastServo1Angle)) >= SERVO_WRITE_DEADBAND_S1_S3) {
-                    lastServo1Angle = cmdAngle1;
-                    servo1.write(lastServo1Angle);
-                    servo1SwitchCount = 0;
-                }
-            } else {
-                servo1SwitchCount = 0;
+            cmdAngle1 = mapServo1Lookup(filteredCh1);
+            if (abs(static_cast<int16_t>(cmdAngle1) - static_cast<int16_t>(lastServo1Angle)) >= SERVO_WRITE_DEADBAND_S1_S3) {
+                lastServo1Angle = cmdAngle1;
+                servo1.write(lastServo1Angle);
             }
         }
         
@@ -236,7 +220,7 @@ void loop() {
         uint16_t filteredCh2 = servo2Filter.updateWithEndpointSnap(ch2Constrained,
                                                                     ServoMotor::INPUT_MIN,
                                                                     ServoMotor::INPUT_MAX,
-                                                                    SERVO_FILTER_SHIFT_S2,
+                                                                    ServoMotor::FILTER_SHIFT_S2,
                                                                     ServoMotor::ENDPOINT_BAND);
         lastCh2Filtered = filteredCh2;
         uint8_t cmdAngle2 = mapServo2Lookup(filteredCh2);
@@ -250,7 +234,7 @@ void loop() {
             uint16_t filteredCh3 = servo3Filter.updateWithEndpointSnap(ch0,
                                                                         ServoMotor::INPUT_MIN,
                                                                         ServoMotor::INPUT_MAX,
-                                                                        SERVO_FILTER_SHIFT_S1_S3,
+                                                                        ServoMotor::FILTER_SHIFT_S3,
                                                                         ServoMotor::ENDPOINT_BAND);
             cmdAngle3 = mapServo3CenterPeak(filteredCh3);
             if (abs(static_cast<int16_t>(cmdAngle3) - static_cast<int16_t>(lastServo3Angle)) >= SERVO_WRITE_DEADBAND_S1_S3) {
@@ -260,46 +244,6 @@ void loop() {
         }
     }
 
-    // 10Hz 輸出監看資料給 Serial Monitor / Plotter
-    if (millis() - lastPrintMs >= 1000) {
-        lastPrintMs = millis();
-
-        Serial.print("CH1:");
-        Serial.print(lastCh1);
-        Serial.print(",CH3:");
-        Serial.print(lastCh3);
-        Serial.print(",BasePWM:");
-        Serial.print(lastPwmCmd);
-        Serial.print(",TurnPWM:");
-        Serial.print(lastTurnCmd);
-        Serial.print(",Lcmd:");
-        Serial.print(lastLeftCmd);
-        Serial.print(",Rcmd:");
-        Serial.print(lastRightCmd);
-
-    #if MOTOR_TEST_MODE == 1
-        Serial.print(",Speed1(OL):");
-        Serial.print(lastSpeedOL1);
-        Serial.print(",Speed2(OL):");
-        Serial.print(lastSpeedOL2);
-        Serial.print(",Speed3(OL):");
-        Serial.print(lastSpeedOL3);
-        Serial.print(",Speed4(OL):");
-        Serial.print(lastSpeedOL4);
-    #endif
-
-        Serial.print(",Servo1Angle:");
-        Serial.print(lastServo1Angle);
-        Serial.print(",CH2Raw:");
-        Serial.print(lastCh2Raw);
-
-        Serial.print(",CH2F:");
-        Serial.print(lastCh2Filtered);
-
-        Serial.print(",Servo2Angle:");
-        Serial.print(lastServo2Angle);
-        Serial.print(",Servo3Angle:");
-        Serial.println(lastServo3Angle);
-    }
+  
 }
 
