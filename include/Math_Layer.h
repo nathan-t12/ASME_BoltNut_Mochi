@@ -30,6 +30,7 @@ private:
 
 uint8_t mapServo2Lookup(uint16_t chValue);
 uint8_t mapServo3CenterPeak(uint16_t chValue);
+uint8_t mapServo1Lookup(uint16_t chValue);
 
 
 

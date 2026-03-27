@@ -51,6 +51,42 @@ void ServoInputFilter::reset(uint16_t value) {
     filteredValue = value;
 }
 
+uint8_t mapServo1Lookup(uint16_t chValue) {
+    // Lookup table mapping in range 0~90 deg.
+    static constexpr uint16_t kInputTable[] = {1000, 1200, 1400, 1600, 1800, 2000};
+    static constexpr uint8_t kAngleTable[] = {
+        ServoMotor::SERVO1_MIN_ANGLE,
+        18,
+        36,
+        54,
+        72,
+        ServoMotor::SERVO1_MAX_ANGLE
+    };
+
+    if (chValue <= kInputTable[0]) {
+        return kAngleTable[0];
+    }
+    if (chValue >= kInputTable[5]) {
+        return kAngleTable[5];
+    }
+
+    for (uint8_t i = 0; i < 5; ++i) {
+        uint16_t x0 = kInputTable[i];
+        uint16_t x1 = kInputTable[i + 1];
+        if (chValue <= x1) {
+            uint8_t y0 = kAngleTable[i];
+            uint8_t y1 = kAngleTable[i + 1];
+            uint16_t dx = x1 - x0;
+            uint16_t ox = chValue - x0;
+            uint8_t angle = static_cast<uint8_t>(
+                y0 + (static_cast<int16_t>(y1) - static_cast<int16_t>(y0)) * static_cast<int16_t>(ox) / static_cast<int16_t>(dx));
+            return angle;
+        }
+    }
+
+    return kAngleTable[5];
+}
+
 uint8_t mapServo2Lookup(uint16_t chValue) {
     // Lookup table with focus on endpoint certainty.
     static constexpr uint16_t kInputTable[] = {1000, 1200, 1400, 1600, 1800, 2000};
