@@ -34,7 +34,7 @@ int16_t mapC1ToTargetCountLUT(uint16_t c1) {
 int16_t mapC1ToOpenLoopPwmLUT(uint16_t c1) {
     static constexpr uint8_t kPwmTable[] = {
         18, 20, 23, 27, 32, 39, 48, 60,
-        74, 92, 114, 138, 164, 188, 210, 230
+        74, 92, 114, 138, 164, 188, 210, 255
     };
 
     constexpr uint16_t kSpan = CommsMapConfig::C1_MAX - CommsMapConfig::C1_CENTER;

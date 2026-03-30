@@ -36,7 +36,7 @@ namespace CommsMapConfig {
 	constexpr uint16_t C3_MAX = 2000;
 	constexpr uint16_t C3_CENTER = 1500;
 	constexpr uint16_t C3_DEADBAND = 20;
-	constexpr int16_t TURN_PWM_MAX = 180;
+	constexpr int16_t TURN_PWM_MAX = 255;
 	constexpr uint16_t TURN_GAIN_PERCENT = 130;
 
 	// Servo mapping: 1000 -> 0°, 2000 -> 90°

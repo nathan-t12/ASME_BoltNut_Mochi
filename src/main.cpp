@@ -143,8 +143,8 @@ void loop() {
         lastPwmCmd = mapC1ToOpenLoopPwmLUT(lastCh1);
         lastTurnCmd = mapC3ToTurnPwmLUT(lastCh3);
 
-    const int16_t kOpenLoopMin = -DriveConfig::OPEN_LOOP_MAX_PWM;
-    const int16_t kOpenLoopMax = DriveConfig::OPEN_LOOP_MAX_PWM;
+    const int16_t kOpenLoopMin = PidConfig::OUTPUT_MIN;
+    const int16_t kOpenLoopMax = PidConfig::OUTPUT_MAX;
 
     auto applyGainPercent = [](int16_t value, uint16_t gainPercent) -> int16_t {
         int32_t scaled = static_cast<int32_t>(value) * gainPercent;
@@ -161,7 +161,7 @@ void loop() {
         return value;
     };
 
-        // 預設左側=M1/M3，右側=M2/M4
+    // 左側=M1/M3，右側=M2/M4
     lastLeftCmd = constrain(lastPwmCmd + lastTurnCmd, kOpenLoopMin, kOpenLoopMax);
     lastRightCmd = constrain(lastPwmCmd - lastTurnCmd, kOpenLoopMin, kOpenLoopMax);
 
@@ -195,7 +195,7 @@ void loop() {
         lastSpeedOL4 = motor4.getCurrentSpeed();
 #endif
         
-        // Servo control (independent of motor test mode)
+        // Servo control
         uint16_t ch5 = ibus.readChannel(5);
         uint16_t ch2 = ibus.readChannel(2);
         uint16_t ch0 = ibus.readChannel(0);

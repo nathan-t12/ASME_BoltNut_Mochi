@@ -98,9 +98,6 @@ namespace PidConfig {
 
 // 底盤輸出調校（開迴路）
 namespace DriveConfig {
-    // 開迴路總輸出上限（0~255）
-    constexpr int16_t OPEN_LOOP_MAX_PWM = 230;
-
     // 單顆馬達補償倍率（百分比），100=不補償
     constexpr uint16_t MOTOR1_GAIN_PERCENT = 100;
     constexpr uint16_t MOTOR2_GAIN_PERCENT = 100;
