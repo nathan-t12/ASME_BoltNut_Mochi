@@ -44,7 +44,6 @@ void motor4EncoderISR() {
     motor4.encoderISR();
 }
 
-uint32_t lastPrintMs = 0;
 uint16_t lastCh1 = CommsMapConfig::C1_CENTER;
 uint16_t lastCh3 = CommsMapConfig::C3_CENTER;
 int16_t lastTargetCount = 0;
@@ -52,15 +51,9 @@ int16_t lastPwmCmd = 0;
 int16_t lastTurnCmd = 0;
 int16_t lastLeftCmd = 0;
 int16_t lastRightCmd = 0;
-int16_t lastSpeedOL1 = 0;
-int16_t lastSpeedOL2 = 0;
-int16_t lastSpeedOL3 = 0;
-int16_t lastSpeedOL4 = 0;
 uint8_t lastServo1Angle = ServoMotor::SERVO1_MIN_ANGLE;
 uint8_t lastServo2Angle = ServoMotor::SERVO2_MIN_ANGLE;
 uint8_t lastServo3Angle = ServoMotor::SERVO3_MIN_ANGLE;
-uint16_t lastCh2Raw = ServoMotor::INPUT_MIN;
-uint16_t lastCh2Filtered = ServoMotor::INPUT_MIN;
 
 constexpr uint16_t SERVO_INPUT_CENTER = (ServoMotor::INPUT_MIN + ServoMotor::INPUT_MAX) / 2;
 constexpr uint8_t SERVO_WRITE_DEADBAND_S1_S3 = ServoMotor::WRITE_DEADBAND;
@@ -183,16 +176,11 @@ void loop() {
     motor3.setSpeed(m3Cmd);
     motor4.setSpeed(m4Cmd);
 
-        // 開迴路下仍更新回授，便於觀察速度是否有變化
+        // 開迴路下仍更新回授，保留速度估測更新
         motor1.updateFeedbackOnly();
         motor2.updateFeedbackOnly();
         motor3.updateFeedbackOnly();
         motor4.updateFeedbackOnly();
-
-        lastSpeedOL1 = motor1.getCurrentSpeed();
-        lastSpeedOL2 = motor2.getCurrentSpeed();
-        lastSpeedOL3 = motor3.getCurrentSpeed();
-        lastSpeedOL4 = motor4.getCurrentSpeed();
 #endif
         
         // Servo control
@@ -214,15 +202,13 @@ void loop() {
             }
         }
         
-        // Servo2 debug-friendly path: always consume constrained input and update output.
-        lastCh2Raw = ch2;
+        // Servo2 path: always consume constrained input and update output.
         uint16_t ch2Constrained = constrain(ch2, ServoMotor::INPUT_MIN, ServoMotor::INPUT_MAX);
         uint16_t filteredCh2 = servo2Filter.updateWithEndpointSnap(ch2Constrained,
                                                                     ServoMotor::INPUT_MIN,
                                                                     ServoMotor::INPUT_MAX,
                                                                     ServoMotor::FILTER_SHIFT_S2,
                                                                     ServoMotor::ENDPOINT_BAND);
-        lastCh2Filtered = filteredCh2;
         uint8_t cmdAngle2 = mapServo2Lookup(filteredCh2);
         if (abs(static_cast<int16_t>(cmdAngle2) - static_cast<int16_t>(lastServo2Angle)) >= SERVO_WRITE_DEADBAND_S2) {
             lastServo2Angle = cmdAngle2;

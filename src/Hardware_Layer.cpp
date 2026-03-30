@@ -109,11 +109,3 @@ ISR(TIMER2_COMPA_vect) {
         timerFlag = true;
     }
 }
-
-
-// ISR(TIMER1_COMPA_vect) {
-//     timerFlag = true;
-//     static bool state = false;
-//     state = !state;
-//     digitalWrite(13, state); 
-// }
