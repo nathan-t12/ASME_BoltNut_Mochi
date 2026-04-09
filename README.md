@@ -1,173 +1,183 @@
-# ASME_BoltNut_Mochie
+# BoltNut_Mochie
 
-ASME_BoltNut_Mochie 是一個基於 Arduino Mega 2560 的多馬達/多伺服控制專案，
-使用 IBus 遙控通道作為輸入，整合以下能力：
+An Arduino-based multi-motor and multi-servo control system for autonomous robotic platforms.  
+**BoltNut_Mochie** integrates four DC motors with encoders, three servo motors, and iBus RC receiver input to deliver robust open-loop and closed-loop control modes with lookup-table (LUT) optimization.
 
-1. 4 顆 DC 馬達（含編碼器）
-2. 3 顆伺服馬達
-3. 開迴路與閉迴路雙模式
-4. LUT 映射優化，降低即時計算負擔
+## Overview
 
-## 功能總覽
+**Platform:** Arduino Mega 2560 (ATmega2560)  
+**Input:** iBus protocol from RC receiver  
+**Output:** 4× DC motor PWM + direction, 3× servo PWM
 
-1. 馬達控制
-- 閉迴路模式：C1 經 LUT 映射為目標計數，進入 PID 控制。
-- 開迴路模式：C1 與 C3 都經 LUT，形成前進/轉向混控。
-- 4 輪混控：左側（M1/M3）、右側（M2/M4）差速控制。
+### Key Features
 
-2. 伺服控制
-- Servo1：離散三段角。
-- Servo2：查表角度映射，並保留診斷輸出。
-- Servo3：中心峰值分段映射。
+- **Dual-mode motor control**
+  - Closed-loop: encoder-based PID regulation
+  - Open-loop: LUT-driven differential steering with dynamic turn compensation
+  
+- **Multi-servo support**
+  - Per-servo input filtering and custom mapping functions
+  - Centre-peak mapping for asymmetric response (e.g., servo3)
+  - Lookup-table interpolation for smooth actuation
 
-3. 時脈與中斷
-- 控制迴圈使用 Timer2 產生約 20ms Flag，避免與 Servo 函式庫衝突。
-- 伺服由 Arduino Servo 函式庫控制。
-- 4 路 encoder 中斷輸入用於速度回授。
+- **Low-speed turn assist**
+  - Automatic PWM boost for right-side wheels during slow turns
+  - Overcomes static friction for smooth response at minimal speeds
 
-## 軟體架構
+- **Efficient control loop**
+  - Timer2-based 20ms periodic control tick (avoids Servo library ISR conflicts)
+  - Scaled fixed-point arithmetic for real-time computation
 
-1. 通訊與映射層
-- 檔案：include/Comms_Layer.h, src/Comms_Layer.cpp
-- 責任：通道數值轉換、LUT 映射（C1/C3 等）
+## Hardware Setup
 
-2. 數學層
-- 檔案：include/Math_Layer.h, src/Math_Layer.cpp
-- 責任：濾波器、PID、Servo 查表映射函式
+### Motor Connections (Arduino Mega 2560)
+```
+Motor 1 (M1): PWM=6,    DIR=32/33, ENC_INT=18/19
+Motor 2 (M2): PWM=7,    DIR=35/34, ENC_INT=20/21
+Motor 3 (M3): PWM=4,    DIR=28/29, ENC_INT=2/8
+Motor 4 (M4): PWM=5,    DIR=31/30, ENC_INT=3/9
+Standby:      STBY1=37, STBY2=36
+```
 
-3. 硬體層
-- 檔案：include/Hardware_Layer.h, src/Hardware_Layer.cpp
-- 責任：PWM 輸出、方向控制、encoder 計數、控制時序旗標
+### Servo Connections
+```
+Servo 1 (S1): PWM=10
+Servo 2 (S2): PWM=38
+Servo 3 (S3): PWM=39
+```
 
-4. 主控流程
-- 檔案：src/main.cpp
-- 責任：整合遙控輸入、模式切換、馬達與伺服命令下發、序列監看
+### RC Receiver (iBus)
+```
+Serial2 RX connected to iBus data line
+```
 
-## 通道與控制對應
+## RC Channel Mapping
 
-1. C1：前進/後退
-- 閉迴路：C1 -> 目標計數 -> PID
-- 開迴路：C1 -> 基礎 PWM
+| Channel | Function | Range | Mode |
+|---------|----------|-------|------|
+| C1 | Forward/Reverse | 1000–2000 | Both |
+| C3 | Turn | 1000–2000 | Open-loop |
+| C5 | Servo 1 (discrete) | 1000–2000 | Both |
+| C2 | Servo 2 (continuous) | 1000–2000 | Both |
+| C0 | Servo 3 (centre-peak) | 1000–2000 | Both |
 
-2. C3：轉向
-- 開迴路：C3 -> 轉向 PWM（LUT）
+## Control Modes
 
-3. C5：Servo1
-- 離散三段（0 / 45 / 90）+ 遲滯
+### Closed-Loop (MOTOR_TEST_MODE = 0)
+- **C1 → Target Count LUT → PID per motor**
+- Encoder feedback provides speed regulation
+- Ideal for precise speed synchronization and load handling
 
-4. C2：Servo2
-- 查表映射（極值優先）
+### Open-Loop (MOTOR_TEST_MODE = 1 – Default)
+- **C1 → Base PWM LUT + C3 → Turn PWM LUT**
+- Differential mixing: Left = Base + Turn, Right = Base – Turn
+- Per-motor gain compensation (100–110%)
+- Low-speed right-turn boost (18 PWM units below 90 base PWM)
+- Full response, suitable for dynamic manoeuvring
 
-5. C0：Servo3
-- 中心峰值映射：
-  - INPUT_MIN（1000）-> SERVO3_LEFT_ANGLE
-  - SERVO3_CENTER_INPUT（1500）-> SERVO3_PEAK_ANGLE
-  - INPUT_MAX（2000）-> SERVO3_RIGHT_ANGLE
+## Software Architecture
 
-## 馬達實作細節
+```
+BoltNut_Mochie/
+├── include/
+│   ├── config.h              # Pin definitions, tuning parameters (PID, filter, servo ranges)
+│   ├── Comms_Layer.h         # RC channel mapping & LUT declarations
+│   ├── Hardware_Layer.h      # Motor class, Timer2 setup
+│   └── Math_Layer.h          # Filter, PID, servo mapping functions
+├── src/
+│   ├── main.cpp              # Main loop: control integration, mode dispatch
+│   ├── Comms_Layer.cpp       # LUT implementations for C1/C3
+│   ├── Hardware_Layer.cpp    # Motor PWM/direction, encoder ISR, Timer2 ISR
+│   └── Math_Layer.cpp        # Filter, PID, servo lookup/centre-peak mappers
+├── platformio.ini            # Build configuration
+└── README.md
+```
 
-1. 閉迴路模式
-- 每次控制週期讀取 encoder 增量。
-- 濾波器平滑速度估計。
-- PID 計算輸出並限制於 PWM 範圍。
+### Layer Responsibilities
 
-2. 開迴路模式
-- C1 LUT 得到 BasePWM。
-- C3 LUT 得到 TurnPWM。
-- 左右輪命令：
-  - Left = constrain(BasePWM + TurnPWM)
-  - Right = constrain(BasePWM - TurnPWM)
+1. **Comms Layer** – Channel-to-command mapping via table lookup
+2. **Math Layer** – Exponential filtering, PID loop, servo angle interpolation
+3. **Hardware Layer** – PWM/direction I/O, encoder counting, timing
+4. **Main** – Orchestrates mode selection, applies mixers, commands actuators
 
-3. 安全性
-- 遙控讀值超界時回中心或安全值。
-- encoder 異常尖峰過濾。
-- 目標為零時提供停止/重置控制狀態。
+## Tuning & Configuration
 
-## 伺服實作細節
+All key parameters centralized in `include/config.h`:
 
-1. Servo1
-- 透過輸入濾波與遲滯減少門檻附近跳動。
+### Motor Tuning (DriveConfig)
+```cpp
+constexpr uint16_t MOTOR1_GAIN_PERCENT = 100;     // Gain: 100 = no boost
+constexpr uint16_t MOTOR3_GAIN_PERCENT = 105;     // +5% for imbalance
+constexpr int16_t  LOW_SPEED_BASE_PWM_THRESHOLD = 90;  // Below 90 PWM → boost
+constexpr int16_t  M4_RIGHT_TURN_BOOST_PWM = 18;  // +18 PWM for inner wheel
+```
 
-2. Servo2
-- 使用 mapServo2Lookup，查表加分段內插。
-- 監看輸出含 CH2Raw、CH2F、Servo2Angle，便於診斷。
+### PID Tuning (PidConfig)
+```cpp
+constexpr float PID_KP  = 2.0f;   // Proportional gain
+constexpr float PID_KI  = 0.3f;   // Integral gain
+constexpr float PID_KD  = 0.1f;   // Derivative gain
+```
 
-3. Servo3
-- 使用 mapServo3CenterPeak。
-- 主要參數集中於 config.h 的 ServoMotor namespace：
-  - SERVO3_CENTER_INPUT
-  - SERVO3_LEFT_ANGLE
-  - SERVO3_PEAK_ANGLE
-  - SERVO3_RIGHT_ANGLE
+### Servo Parameters (ServoMotor)
+```cpp
+constexpr uint8_t FILTER_SHIFT_S1 = 4;       // Servo1: stronger filtering
+constexpr uint8_t FILTER_SHIFT_S2 = 0;       // Servo2: no filter (raw)
+constexpr uint8_t FILTER_SHIFT_S3 = 3;       // Servo3: standard filter
+```
 
-## 主要設定參數
+### Turn Compensation (CommsMapConfig)
+```cpp
+constexpr uint16_t TURN_GAIN_PERCENT = 130;  // Turn command ×1.3
+constexpr int16_t  TURN_PWM_MAX = 255;       // Saturation cap
+```
 
-1. 腳位與伺服參數
-- 檔案：include/config.h
-- 內容：馬達腳位、伺服腳位、伺服映射參數
+## Compilation & Deployment
 
-2. 通道映射常數
-- 檔案：include/Comms_Layer.h
-- 內容：C1/C3 deadband、範圍與 LUT 對應常數
+### Prerequisites
+- **PlatformIO** with Arduino AVR support
+- **Libraries:**
+  - `bmellink/IBusBM @ ^1.1.4`
+  - `arduino-libraries/Servo @ ^1.2.2`
 
-3. 控制與濾波
-- 檔案：include/config.h
-- 內容：PidConfig、FilterConfig
-
-## 序列監看輸出
-
-目前主程式會週期輸出以下資訊（用於調機與除錯）：
-
-1. CH1, CH3
-2. BasePWM, TurnPWM
-3. Lcmd, Rcmd
-4. Speed1~Speed4（開迴路回授）
-5. Servo1Angle, Servo2Angle, Servo3Angle
-6. CH2Raw, CH2F（Servo2 診斷）
-
-## 開發與執行
-
-1. 環境
-- VS Code + PlatformIO
-- Board: megaatmega2560
-
-2. 編譯
+### Build
 ```bash
 pio run -e megaatmega2560
 ```
 
-3. 上傳
+### Upload (Windows)
 ```bash
 pio run -e megaatmega2560 --target upload --upload-port COM10
 ```
 
-4. 監看序列埠
+### Monitor Console
 ```bash
 pio device monitor -b 115200
 ```
 
-## 專案目錄
+## Performance Notes
 
-```text
-ASME_1/
-├── include/
-│   ├── config.h
-│   ├── Comms_Layer.h
-│   ├── Hardware_Layer.h
-│   └── Math_Layer.h
-├── src/
-│   ├── main.cpp
-│   ├── Comms_Layer.cpp
-│   ├── Hardware_Layer.cpp
-│   └── Math_Layer.cpp
-├── platformio.ini
-└── README.md
-```
+- **Control frequency:** ~50 Hz (20 ms tick via Timer2)
+- **Servo update:** Per-loop for smooth, jitter-free response
+- **Static friction compensation:** Active only when base PWM ≤ 90 and turning
+- **Memory usage:** ~10.9% RAM, ~3.9% Flash (plenty of headroom for extensions)
 
-<!-- ## 後續建議
+## Troubleshooting
 
-1. 將 Servo1 離散門檻與遲滯常數外移到 config.h，便於現場快速調機。
-2. 增加轉向增益隨速度衰減 LUT，提升高速穩定性。
-3. 補一份實機校正紀錄（各通道端點、伺服實際角、輪組方向）方便交接。 -->
+| Symptom | Likely Cause | Fix |
+|---------|--------------|-----|
+| One wheel slower | Mechanical friction / motor imbalance | Increase `MOTOR*_GAIN_PERCENT` |
+| Poor low-speed turns | Static friction on inner wheels | Increase `M4_RIGHT_TURN_BOOST_PWM` |
+| Servo jitter | Input noise / excessive filter | Reduce `FILTER_SHIFT_S*` or increase `WRITE_DEADBAND` |
+| Encoder noise spikes | Electrical interference | Add ferrite on signal lines |
+
+## License
+
+Open source. Use, modify, and redistribute freely with attribution.
+
+
+---
+
+**For questions or customization requests**, refer to the inline code comments in `include/config.h` and `src/Math_Layer.cpp`.
 
 
